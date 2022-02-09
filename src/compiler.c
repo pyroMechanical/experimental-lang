@@ -1,12 +1,8 @@
 #include "compiler.h"
 
-void compile(const char* src)
+bool compile(const char* src, IRBlock* block)
 {
     parse(src);
-}
 
-InterpretResult interpret(const char* src)
-{
-    compile(src);
-    return INTERPRET_OK;
+    return true;
 }

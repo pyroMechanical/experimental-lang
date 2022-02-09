@@ -2,15 +2,10 @@
 #define compiler_header
 
 #include "core.h"
+#include "instruction.h"
 #include "parser.h"
 
-typedef enum {
-  INTERPRET_OK,
-  INTERPRET_COMPILE_ERROR,
-  INTERPRET_RUNTIME_ERROR
-} InterpretResult;
+bool compile(const char* src, IRBlock* block);
 
-void compile(const char* src);
-InterpretResult interpret(const char* src);
 
 #endif

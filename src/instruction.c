@@ -33,7 +33,7 @@ uint32_t instructionFromA(uint8_t op, uint8_t A)
     uint32_t result = 0;
     result += op;
     result = (result << 8) + A;
-    result = (result << 16);
+    result = result << 16;
     return result;
 }
 

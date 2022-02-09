@@ -132,10 +132,69 @@ inline static void skipWhitespace(Lexer* lexer)
     }
 }
 
+inline static TokenType matchKeyword(Lexer* lexer, int start, int length, const char* rest, TokenType type)
+{
+    if(lexer->current - lexer->start == start + length && memcmp(lexer->start + start, rest, length) == 0)
+    {
+        return type;
+    }
+
+    return IDENTIFIER;
+}
+
+inline static TokenType identifierType(Lexer* lexer)
+{
+    switch(lexer->start[0])
+    {
+        case 'a': return matchKeyword(lexer, 1, 2, "nd", AND);
+        case 'b': return matchKeyword(lexer, 1, 4, "reak", BREAK);
+        case 'c':
+            if(lexer->current - lexer->start > 1)
+            {
+                switch(lexer->start[1])
+                {
+                    case 'a': return matchKeyword(lexer, 2, 2, "se", CASE);
+                    case 'l': return matchKeyword(lexer, 2, 3, "ass", CLASS);
+                }
+            }
+            break;
+        case 'e': return matchKeyword(lexer, 1, 3, "lse", ELSE);
+        case 'f':
+             if(lexer->current - lexer->start > 1)
+            {
+                switch(lexer->start[1])
+                {
+                    case 'a': return matchKeyword(lexer, 2, 3, "lse", FALSE);
+                    case 'o': return matchKeyword(lexer, 2, 1, "r", FOR);
+                }
+            }
+            break;
+        case 'i': 
+            if(lexer->current - lexer->start > 1)
+            {
+                switch(lexer->start[1])
+                {
+                    case 'f': return matchKeyword(lexer, 2, 0, "", IF);
+                    case 'm': return matchKeyword(lexer, 2, 7, "plement", IMPLEMENT);
+                }
+            }
+            break;
+        case 'n': return matchKeyword(lexer, 1, 2, "ot", NOT);
+        case 'o': return matchKeyword(lexer, 1, 1, "r", OR);
+        case 'r': return matchKeyword(lexer, 1, 5, "eturn", RETURN);
+        case 's': return matchKeyword(lexer, 1, 5, "witch", SWITCH);
+        case 't': return matchKeyword(lexer, 1, 3, "ype", TYPE);
+        case 'u': return matchKeyword(lexer, 1, 4, "sing", USING);
+        case 'w': return matchKeyword(lexer, 1, 4, "hile", WHILE);
+    }
+
+    return IDENTIFIER;
+}
+
 inline static Token identifier(Lexer* lexer)
 {
     while(isIdentifier(peek(lexer)) || isDigit(peek(lexer), false, false, false)) advance(lexer);
-    return makeToken(lexer, IDENTIFIER); //todo: replace with switch for kewords
+    return makeToken(lexer, identifierType(lexer)); //todo: replace with switch for kewords
 }
 
 inline static Token number(Lexer* lexer)
@@ -283,7 +342,12 @@ Token scanToken(Lexer* lexer)
         case '+': return makeToken(lexer, PLUS);
         case '/': return makeToken(lexer, SLASH);
         case '*': return makeToken(lexer, STAR);
-        case '&': return makeToken(lexer, AMPERSAND);
+        case '&': return makeToken(lexer, 
+                match(lexer, '&') ? AND :
+                (match (lexer, '=') ? BIT_AND_EQUAL : AMPERSAND));
+        case '|' : return makeToken(lexer,
+                match(lexer, '|') ? OR :
+                (match(lexer, '=') ? BIT_OR_EQUAL : BIT_OR));
         case '!': // != and !
             return makeToken( lexer,
                 match(lexer, '=') ? BANG_EQUAL : BANG);
@@ -293,11 +357,13 @@ Token scanToken(Lexer* lexer)
         case '<': // <=, <<, and <
             return makeToken( lexer,
                 match(lexer, '=') ? LESS_EQUAL :
-                match(lexer, '<') ? BIT_SHIFT_LEFT : LESS);
+                match(lexer, '<') ? 
+                (match(lexer, '=') ? SHIFT_LEFT_EQUAL : SHIFT_LEFT) : LESS);
         case '>': // >=, >>, and >
             return makeToken( lexer,
                 match(lexer, '=') ? GREATER_EQUAL :
-                match(lexer, '>') ? BIT_SHIFT_RIGHT : GREATER);
+                match(lexer, '>') ?
+                (match(lexer, '=') ? SHIFT_RIGHT_EQUAL : SHIFT_RIGHT) : GREATER);
         case '"': return string(lexer);
         case '\n': 
             Token result = makeToken(lexer, NEWLINE);
