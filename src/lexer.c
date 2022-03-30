@@ -1,3 +1,4 @@
+#include <string.h>
 #include "lexer.h"
 
 Lexer initLexer(const char* src)
@@ -9,32 +10,20 @@ Lexer initLexer(const char* src)
     return lexer;
 }
 
-inline static bool isDigit(char c, bool isBinary, bool isOctal, bool isHexadecimal)
+inline static bool isDigit(char c)
 {
-    if(isBinary)
-    {
-        return (c >= '0' &&  c <= '1');
-    }
-    else if(isHexadecimal)
-    {
-        return (c >= '0' && c <= '9') ||
-               (c >= 'a' && c <= 'f') ||
-               (c >= 'A' && c <= 'F');
-    }
-    else if(isOctal)
-    {
-        return (c >= '0' && c <= '7');
-    }
-    else
-    {
         return (c >= '0' && c <= '9');
-    }
 }
 
 inline static bool isAlpha(char c)
 {
     return (c >= 'a' && c <= 'z') ||
            (c >= 'A' && c <= 'Z');
+}
+
+inline static bool isUppercase(char c)
+{
+    return (c >= 'A' && c <= 'Z');
 }
 
 inline static bool isIdentifier(char c)
@@ -155,6 +144,7 @@ inline static TokenType identifierType(Lexer* lexer)
                 {
                     case 'a': return matchKeyword(lexer, 2, 2, "se", CASE);
                     case 'l': return matchKeyword(lexer, 2, 3, "ass", CLASS);
+                    case 'o': return matchKeyword(lexer, 2, 6, "ntinue", CONTINUE);
                 }
             }
             break;
@@ -179,21 +169,54 @@ inline static TokenType identifierType(Lexer* lexer)
                 }
             }
             break;
+        case 'm': return matchKeyword(lexer, 1, 6, "utable", MUTABLE);
         case 'n': return matchKeyword(lexer, 1, 2, "ot", NOT);
         case 'o': return matchKeyword(lexer, 1, 1, "r", OR);
         case 'r': return matchKeyword(lexer, 1, 5, "eturn", RETURN);
-        case 's': return matchKeyword(lexer, 1, 5, "witch", SWITCH);
-        case 't': return matchKeyword(lexer, 1, 3, "ype", TYPE);
-        case 'u': return matchKeyword(lexer, 1, 4, "sing", USING);
+        case 's':
+            if(lexer->current - lexer->start > 1)
+            {
+                switch(lexer->start[1])
+                {
+                    case 'w': return matchKeyword(lexer, 2, 4, "itch", SWITCH);
+                    case 't': return matchKeyword(lexer, 2, 4, "ruct", STRUCT);
+                }
+            }
+            break;
+        case 't': return matchKeyword(lexer, 1, 6, "ypedef", TYPEDEF);
+        case 'u':
+            if(lexer->current - lexer->start > 1)
+            {
+                switch(lexer->start[1])
+                { 
+                    case 's': return matchKeyword(lexer, 2, 3, "ing", USING);
+                    case 'n': return matchKeyword(lexer, 2, 3, "ion", UNION);
+                }
+            }
+            break;
         case 'w': return matchKeyword(lexer, 1, 4, "hile", WHILE);
     }
 
     return IDENTIFIER;
 }
 
+inline static Token typeToken(Lexer* lexer)
+{
+    while(isIdentifier(peek(lexer)) || isDigit(peek(lexer))) advance(lexer);
+    return makeToken(lexer, TYPE);
+}
+
 inline static Token identifier(Lexer* lexer)
 {
-    while(isIdentifier(peek(lexer)) || isDigit(peek(lexer), false, false, false)) advance(lexer);
+    if(*lexer->start == '_')
+    {
+        while(peek(lexer) == '_' ||isDigit(peek(lexer))) advance(lexer);
+    }
+    if(isUppercase(*lexer->start) || (*lexer->start == '_' && isUppercase(lexer->current[-1])))
+    {
+        return typeToken(lexer);
+    }
+    while(isIdentifier(peek(lexer)) || isDigit(peek(lexer))) advance(lexer);
     return makeToken(lexer, identifierType(lexer)); //todo: replace with switch for kewords
 }
 
@@ -206,31 +229,30 @@ inline static Token number(Lexer* lexer)
     {
         if(peek(lexer) == 'b')
         {
-            bin = true;
             advance(lexer);
+            while(peek(lexer) > '0' && peek(lexer) <= '1') advance(lexer);
         }
         else if(peek(lexer) == 'x')
         {
-            hex = true;
             advance(lexer);
+             while(peek(lexer) > '0' && peek(lexer) <= '9'
+             || (peek(lexer) > 'a' && peek(lexer) <= 'f')
+             || (peek(lexer) > 'A' && peek(lexer) <= 'F')) advance(lexer);
         }
         else
         {
-            oct = true;
+           while(peek(lexer) > '0' && peek(lexer) <= '7') advance(lexer);
         }
     }
-    while (isDigit(peek(lexer), false, false, hex)) advance(lexer);
+    else
+    {
+        while (isDigit(peek(lexer))) advance(lexer);
+    }
 
     if(peek(lexer) == '.')
     {
-        if(bin || hex)
-        {
-            advance(lexer);
-            return errorToken(lexer, bin ? "binary notation is invalid for float constants!" :
-                 "hex notation is invalid for float constants!");
-        }
         advance(lexer);
-        while(isDigit(peek(lexer), false, false, false)) advance(lexer);
+        while(isDigit(peek(lexer))) advance(lexer);
         if(peek(lexer) == 'f')
         {
             if(bin)
@@ -272,7 +294,7 @@ inline static Token number(Lexer* lexer)
         {
             char* endOfNumber = lexer->current;
             lexer->current = lexer->start;
-            while(isDigit(peek(lexer), false, oct, false)) advance(lexer);
+            while(isDigit(peek(lexer))) advance(lexer);
             if(lexer->current != endOfNumber) 
             {
                 lexer->current = endOfNumber;
@@ -284,7 +306,7 @@ inline static Token number(Lexer* lexer)
         {
             char* endOfNumber = lexer->current;
             lexer->current = lexer->start;
-            while(isDigit(peek(lexer), bin, false, false)) advance(lexer);
+            while(isDigit(peek(lexer))) advance(lexer);
             if(lexer->current != endOfNumber) 
             {
                 lexer->current = endOfNumber;
@@ -319,13 +341,12 @@ inline static Token string(Lexer* lexer)
 
 Token scanToken(Lexer* lexer)
 {
-    //skipWhitespace(lexer);
+    skipWhitespace(lexer);
     lexer->start = lexer->current;
     if(isAtEnd(lexer)) return makeToken(lexer, EOF_);
-    skipWhitespace(lexer);
     char c = advance(lexer);
     if(isIdentifier(c)) return identifier(lexer);
-    if(isDigit(c, false, false, false)) return number(lexer);
+    if(isDigit(c)) return number(lexer);
 
     switch(c)
     {
@@ -338,32 +359,30 @@ Token scanToken(Lexer* lexer)
         case ';': return makeToken(lexer, SEMICOLON);
         case ',': return makeToken(lexer, COMMA);
         case '.': return makeToken(lexer, DOT);
-        case '-': return makeToken(lexer, MINUS);
+        case ':': return makeToken(lexer, COLON);
+        case '-': return makeToken(lexer, match(lexer, '>') ? ARROW : MINUS);
         case '+': return makeToken(lexer, PLUS);
         case '/': return makeToken(lexer, SLASH);
         case '*': return makeToken(lexer, STAR);
         case '&': return makeToken(lexer, 
-                match(lexer, '&') ? AND :
-                (match (lexer, '=') ? BIT_AND_EQUAL : AMPERSAND));
+                match(lexer, '&') ? AND : AMPERSAND);
         case '|' : return makeToken(lexer,
-                match(lexer, '|') ? OR :
-                (match(lexer, '=') ? BIT_OR_EQUAL : BIT_OR));
+                match(lexer, '|') ? OR : BIT_OR);
         case '!': // != and !
             return makeToken( lexer,
                 match(lexer, '=') ? BANG_EQUAL : BANG);
         case '=': // == and =
             return makeToken( lexer,
                 match(lexer, '=') ? EQUAL_EQUAL : EQUAL);
-        case '<': // <=, <<, and <
+        case '<': // <=, <<, <-, and <
             return makeToken( lexer,
                 match(lexer, '=') ? LESS_EQUAL :
-                match(lexer, '<') ? 
-                (match(lexer, '=') ? SHIFT_LEFT_EQUAL : SHIFT_LEFT) : LESS);
+                match(lexer, '<') ? SHIFT_LEFT : 
+                match(lexer, '-') ? LEFT_ARROW : LESS);
         case '>': // >=, >>, and >
             return makeToken( lexer,
                 match(lexer, '=') ? GREATER_EQUAL :
-                match(lexer, '>') ?
-                (match(lexer, '=') ? SHIFT_RIGHT_EQUAL : SHIFT_RIGHT) : GREATER);
+                match(lexer, '>') ? SHIFT_RIGHT : GREATER);
         case '"': return string(lexer);
         case '\n': 
             Token result = makeToken(lexer, NEWLINE);

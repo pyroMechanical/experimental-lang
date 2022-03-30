@@ -1,5 +1,9 @@
+#ifndef vm_header
+#define vm_header
+
 #include "core.h"
 #include "instruction.h"
+#include "compiler.h"
 
 typedef union
 {
@@ -36,6 +40,8 @@ typedef enum {
   INTERPRET_RUNTIME_ERROR
 } InterpretResult;
 
-InterpretResult interpret(const char* src);
+InterpretResult interpretSource(const char* src);
 
-InterpretResult run(Machine* vm);
+InterpretResult runVM(Machine* vm);
+
+#endif

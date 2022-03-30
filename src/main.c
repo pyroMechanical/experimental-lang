@@ -3,12 +3,24 @@
 #include <string.h>
 
 #include "core.h"
-#include "instruction.h"
+#include "vm.h"
 #include "debug.h"
-#include "compiler.h"
+#include "hash_table.h"
+
+static void testValue(Entry* result)
+{
+	if (result != NULL)
+	{
+		printf("value in table at %s is: %d\n", (char*)result->key, *(int*)result->value);
+	}
+	else
+	{
+		printf("value was null!\n");
+	}
+}
 
 static void repl()
-{
+{	
 	char line[1024];
 	for(;;)
 	{
@@ -20,7 +32,7 @@ static void repl()
 			break;
 		}
 
-		interpret(line);
+		interpretSource(line);
 	}
 }
 
@@ -60,7 +72,7 @@ static char* readFile(const char* path)
 static void runFile(const char* path)
 {
 	char* source = readFile(path);
-	InterpretResult result = interpret(source);
+	InterpretResult result = interpretSource(source);
 	free(source);
 
 	if(result == INTERPRET_COMPILE_ERROR) exit(65);
@@ -79,7 +91,7 @@ int main(int argc, const char* argv[])
 
 	disassembleBlock(&block, "test instructions");
 	freeBlock(&block);
-#endif
+#else
 
 	if(argc == 1)
 	{
@@ -93,5 +105,6 @@ int main(int argc, const char* argv[])
 		fprintf(stderr, "Usage: ctc [path] \n");
 		exit(64);
 	}
+#endif
 	return (0);
 }

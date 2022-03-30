@@ -1,7 +1,7 @@
 #include "vm.h"
 #include "compiler.h"
 
-InterpretResult interpret(const char* src)
+InterpretResult interpretSource(const char* src)
 {
     IRBlock block;
     initBlock(&block);
@@ -15,9 +15,14 @@ InterpretResult interpret(const char* src)
     vm.currentBlock = &block;
     vm.ip = vm.currentBlock->instructions;
     
-    InterpretResult result = run(&vm);
+    InterpretResult result = runVM(&vm);
 
     freeBlock(&block);
 
     return result;
+}
+
+InterpretResult runVM(Machine* vm)
+{
+    return INTERPRET_OK;
 }
