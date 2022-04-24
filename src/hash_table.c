@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "memory.h"
 #include "hash_table.h"
@@ -47,12 +48,12 @@ static Entry* findEntry(Entry* entries, int capacity, const char* key)
     }
 }
 
-Entry* searchTable(HashTable* table, const char* key)
+void* searchTable(HashTable* table, const char* key)
 {
     if (table->count == 0) return NULL;
     Entry* val = findEntry(table->entries, table->capacity, key);
     if(val->key == NULL) return NULL;
-    return val;
+    return val->value;
 }
 
 static void adjustCapacity(HashTable* table, size_t capacity)
@@ -86,7 +87,7 @@ bool insertTable(HashTable* table, const char* key, void* value)
         adjustCapacity(table, capacity);
     }
     Entry* entry = findEntry(table->entries, table->capacity, key);
-    bool isNewKey = entry->key == NULL;
+    bool isNewKey = (entry->key == NULL);
     if (isNewKey && entry->value == NULL) table->count++;
 
     entry->key = key;
@@ -153,4 +154,29 @@ size_t hashFloat(float num)
         hash *= 1099511628211;
     }
     return hash;
+}
+
+size_t nextEntry(HashTable* table, size_t previous)
+{
+    assert(table->capacity > 0);
+    for(size_t i = previous + 1; i < table->capacity; i++)
+    {
+        if(table->entries[i].value != NULL)
+        {
+            return i;
+        }
+    }
+    return (size_t) -1;
+}
+
+
+void applyTable(HashTable* table, void(*func)(void*))
+{
+    if(table->capacity <= 0 || table->entries == NULL) return;
+    size_t index = 0;
+    while(index != -1)
+    {
+        if(table->entries[index].value != NULL) func(table->entries[index].value);
+        index = nextEntry(table, index);
+    }
 }

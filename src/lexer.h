@@ -19,7 +19,7 @@ typedef enum {
 	BANG, BANG_EQUAL, EQUAL_EQUAL,
 	LESS, LESS_EQUAL,
 	GREATER, GREATER_EQUAL,
-	TYPE,
+	TYPE, LET,
 	IDENTIFIER, TYPEDEF,
 	SWITCH, CASE, CLASS,
 	IMPLEMENT, USING,
@@ -46,6 +46,10 @@ typedef struct {
     int length;
     int line;
 } Token;
+
+char* tokenToString(Token t);
+
+bool tokencmp(Token a, Token b);
 
 Lexer initLexer(const char* src);
 

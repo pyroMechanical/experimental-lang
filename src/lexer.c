@@ -1,6 +1,26 @@
 #include <string.h>
 #include "lexer.h"
 
+char* tokenToString(Token t)
+{
+	char* result = calloc(t.length + 1, sizeof(char));
+	strncpy(result, t.start, t.length);
+	return result;
+}
+
+bool tokencmp(Token a, Token b)
+{
+    if(a.length == b.length)
+    {
+        if(strncmp(a.start, b.start, a.length) == 0)
+        {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 Lexer initLexer(const char* src)
 {
     Lexer lexer;
@@ -91,6 +111,7 @@ inline static void skipWhitespace(Lexer* lexer)
             case ' ':
             case '\r':
             case '\t':
+            case '\n':
                 advance(lexer);
                 break;
             case '/':
@@ -169,6 +190,7 @@ inline static TokenType identifierType(Lexer* lexer)
                 }
             }
             break;
+        case 'l': return matchKeyword(lexer, 1, 2, "et", LET);
         case 'm': return matchKeyword(lexer, 1, 6, "utable", MUTABLE);
         case 'n': return matchKeyword(lexer, 1, 2, "ot", NOT);
         case 'o': return matchKeyword(lexer, 1, 1, "r", OR);

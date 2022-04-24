@@ -35,6 +35,7 @@ typedef enum {
     NODE_BREAK,
     NODE_CONTINUE,
     NODE_BLOCK,
+    
     NODE_ASSIGNMENT,
     NODE_BINARY,
     NODE_UNARY,
@@ -72,15 +73,17 @@ typedef struct {
     node* parentScope;
     HashTable variables;
     HashTable types;
+    HashTable typeAliases;
     HashTable functions;
     HashTable classes;
+    HashTable classImpls;
 } ScopeNode;
 
 typedef struct {
     node n;
     node** declarations;
     size_t declarationCapacity;
-    node* globalScope;
+    ScopeNode* globalScope;
     bool hadError;
 } ProgramNode;
 
@@ -166,6 +169,7 @@ typedef struct {
 
 typedef struct {
     node n;
+    ScopeNode* scope;
     size_t declarationCount;
     size_t declarationCapacity;
     node** declarations;
@@ -194,9 +198,9 @@ typedef struct {
 
 typedef struct { 
     node n;
-    node* _struct;
+    node* expr;
     Token op;
-    node* field;
+    Token field;
 } FieldCallNode;
 
 typedef struct {
@@ -227,6 +231,16 @@ typedef struct {
     node n;
     Token value;
 } LiteralNode;
+
+ScopeNode* newScope(ScopeNode* parent);
+
+void freeScope(ScopeNode* node);
+
+void printNodes(node* start, int depth);
+
+char* typeToString(Ty* type);
+
+bool typecmp(Ty* a, Ty* b);
 
 ProgramNode* parse(const char* src);
 

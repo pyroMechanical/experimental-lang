@@ -1,38 +1,51 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "core.h"
-#include "vm.h"
-#include "debug.h"
+#include "compiler.h"
+#include "memory.h"
 #include "hash_table.h"
 
-static void testValue(Entry* result)
+char* getInput()
 {
-	if (result != NULL)
+	size_t length = 128;
+	size_t curr = 0;
+	char* line = GROW_ARRAY(char, NULL, 0, length), *pOffset = line;
+	for(;;)
 	{
-		printf("value in table at %s is: %d\n", (char*)result->key, *(int*)result->value);
+		char c = fgetc(stdin);
+		if(c == EOF) break;
+		
+		if(++curr == length)
+		{
+			curr = length;
+			char* extend = GROW_ARRAY(char, pOffset, length, GROW_CAPACITY(length));
+			length = GROW_CAPACITY(length);
+			line = extend + (line - pOffset);
+			pOffset = extend;
+		}
+		*line++ = c;
 	}
-	else
-	{
-		printf("value was null!\n");
-	}
+	*line = '\0';
+	return pOffset;
 }
 
 static void repl()
-{	
-	char line[1024];
+{
+	printf("To execute your code (assuming windows) type CTRL + Z and start a newline.\n");
 	for(;;)
 	{
 		printf("> ");
 
-		if (!fgets(line, sizeof(line), stdin))
-		{
-			printf("\n");
-			break;
-		}
+		//test string: class Monad m { m a unit(a val); m b bind(a val, a -> b func) { return ret(func(val)); } }
+		char* line = getInput();
 
-		interpretSource(line);
+		bool result = compile(line);
+
+		free(line);
+		printf("%s\n", result ? "COMPILE_SUCCESS" : "COMPILE_FAILURE");
 	}
 }
 
@@ -72,26 +85,13 @@ static char* readFile(const char* path)
 static void runFile(const char* path)
 {
 	char* source = readFile(path);
-	InterpretResult result = interpretSource(source);
+	bool result = compile(source);
+	printf("%s", result ? "COMPILE_SUCCESS" : "COMPILE_FAILURE");
 	free(source);
-
-	if(result == INTERPRET_COMPILE_ERROR) exit(65);
-	if(result == INTERPRET_RUNTIME_ERROR) exit(70);
 }
 
 int main(int argc, const char* argv[])
 {
-#ifdef VMTEST
-	IRBlock block;
-	initBlock(&block);
-	writeBlock(&block, instructionFromA(OP_PUSH, 1));
-	writeBlock(&block, instructionFromA(OP_POP, 2));
-	writeBlock(&block, instructionFromABC(OP_INT_ADD, 1, 2, 0));
-	writeBlock(&block, instructionFromAB(OP_LOAD_8, 0, 5));
-
-	disassembleBlock(&block, "test instructions");
-	freeBlock(&block);
-#else
 
 	if(argc == 1)
 	{
@@ -105,6 +105,5 @@ int main(int argc, const char* argv[])
 		fprintf(stderr, "Usage: ctc [path] \n");
 		exit(64);
 	}
-#endif
 	return (0);
 }

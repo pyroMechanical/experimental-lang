@@ -1,8 +1,9 @@
 #include "compiler.h"
+#include "semant.h"
 
-bool compile(const char* src, IRBlock* block)
+bool compile(const char* src)
 {
-    parse(src);
-
-    return true;
+    ProgramNode* ast = analyze(src);
+    if(ast == NULL) return false;
+    else return true;
 }
