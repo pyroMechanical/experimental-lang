@@ -1,20 +1,21 @@
 #ifndef parser_header
 #define parser_header
 
-#include "core.h"
+#include <memory>
+#include <vector>
+#include <unordered_map>
 #include "lexer.h"
-#include "hash_table.h"
 
-typedef struct {
+struct Parser {
     Lexer* lexer;
     Token next;
     Token current;
     Token previous;
     bool hadError;
     bool panicMode;
-} Parser;
+};
 
-typedef enum {
+enum NodeType {
     NODE_UNDEFINED,
     NODE_PROGRAM,
     NODE_LIBRARY,
@@ -26,16 +27,16 @@ typedef enum {
     NODE_FUNCTIONDECL,
     NODE_VARIABLEDECL,
     NODE_CLASSDECL,
+    NODE_CLASSIMPL,
     NODE_FOR,
     NODE_IF,
-    NODE_WHILE,
+    NODE_WHILE,  
     NODE_SWITCH,
     NODE_CASE,
     NODE_RETURN,
     NODE_BREAK,
     NODE_CONTINUE,
     NODE_BLOCK,
-    
     NODE_ASSIGNMENT,
     NODE_BINARY,
     NODE_UNARY,
@@ -44,204 +45,190 @@ typedef enum {
     NODE_ARRAYCONSTRUCTOR,
     NODE_ARRAYINDEX,
     NODE_IDENTIFIER,
+    NODE_LAMBDA,
     NODE_LITERAL,
+    NODE_LISTINIT,
+    NODE_PLACEHOLDER,
     NODE_SCOPE,
-} NodeType;
+};
 
-typedef struct {
+struct node {
     NodeType nodeType;
-} node;
+};
 
-typedef enum {
+enum Kind {
     PLAINTYPE,
     FUNCTIONTYPE,
     GENERICTYPE
-} Kind;
+};
 
-typedef struct {
-    size_t typeCapacity;
-    Token* type;
-} Ty;
+typedef std::vector<Token> Ty;
 
-typedef struct {
-    Ty* type;
+struct Parameter {
+  
+    Ty type;
     Token identifier;
-} Parameter;
+};
 
-typedef struct {
-    node n;
-    node* parentScope;
-    HashTable variables;
-    HashTable types;
-    HashTable typeAliases;
-    HashTable functions;
-    HashTable classes;
-    HashTable classImpls;
-} ScopeNode;
+struct TypedefNode : public node {
+    Ty typeDefined;
+    Ty typeAliased;
+};
 
-typedef struct {
-    node n;
-    node** declarations;
-    size_t declarationCapacity;
-    ScopeNode* globalScope;
-    bool hadError;
-} ProgramNode;
-
-typedef struct {
-    node n;
-    Ty* typeDefined;
-    Ty* typeAliased;
-} TypedefNode;
-
-typedef struct {
-    node n;
-    Ty* typeDefined;
-    size_t fieldCapacity;
-    Parameter* fields;
+struct RecordDeclarationNode : public node {
+    Ty  typeDefined;
+    std::vector<Parameter> fields;
     enum { UNDEFINED, IS_STRUCT, IS_UNION } struct_or_union;
-} RecordDeclarationNode;
+};
 
-typedef struct {
-    node n;
-    Ty* returnType;
+struct FunctionDeclarationNode : public node {
+    Ty returnType;
     Token identifier;
-    size_t paramCapacity;
-    size_t paramCount;
-    Parameter* params;
-    node* body;
-} FunctionDeclarationNode;
+    std::vector<Parameter> params;
+    std::shared_ptr<node> body;
+};
 
-typedef struct {
-    node n;
-    Ty* type;
+struct VariableDeclarationNode : public node {
+    Ty type;
     Token identifier;
-    node* value;
-} VariableDeclarationNode;
+    std::shared_ptr<node> value;
+};
 
-typedef struct {
-    node n;
-    Ty* className;
-    size_t constraintCapacity;
-    Ty** constraints;
-    size_t functionCapacity;
-    node** functions;
-} ClassDeclarationNode;
+struct ClassDeclarationNode : public node {
+    Ty className;
+    std::vector<Ty> constraints;
+    std::vector<std::shared_ptr<node>> functions;
+};
 
-typedef struct  {
-    node n;
-    node* branchExpr;
-    node* thenStmt;
-    node* elseStmt;
-} IfStatementNode;
+struct ClassImplementationNode : public node {
+    Token _class;
+    Ty implemented;
+    std::vector<std::shared_ptr<node>> functions;
+};
 
-typedef struct {
-    node n;
-    node* loopExpr;
-    node* loopStmt;
-} WhileStatementNode;
+struct ScopeNode;
 
-typedef struct {
-    node n;
-    node* initExpr;
-    node* condExpr;
-    node* incrementExpr;
-    node* loopStmt;
-} ForStatementNode;
+struct ScopeNode : public node {
+    std::shared_ptr<ScopeNode> parentScope;
+    std::unordered_map<std::string, std::shared_ptr<VariableDeclarationNode>> variables;
+    std::unordered_map<std::string, std::shared_ptr<RecordDeclarationNode>> types;
+    std::unordered_map<std::string, std::shared_ptr<TypedefNode>> typeAliases;
+    std::unordered_map<std::string, std::shared_ptr<FunctionDeclarationNode>> functions;
+    std::unordered_map<std::string, std::shared_ptr<ClassDeclarationNode>> classes;
+    std::unordered_map<std::string, std::shared_ptr<node>> classImpls; //TODO: add class implementation node here
+};
 
-typedef struct {
-    node n;
-    node* caseExpr;
-    node* caseStmt;
-} CaseNode;
+struct ProgramNode : public node {
+    std::vector<std::shared_ptr<node>> declarations;
+    std::shared_ptr<ScopeNode> globalScope;
+    bool hadError;
+};
 
-typedef struct {
-    node n;
-    node* switchExpr;
-    size_t caseCount;
-    size_t caseCapacity;
-    CaseNode** cases;
-} SwitchStatementNode;
 
-typedef struct {
-    node n;
-    node* returnExpr;
-} ReturnStatementNode;
 
-typedef struct {
-    node n;
-    ScopeNode* scope;
-    size_t declarationCount;
-    size_t declarationCapacity;
-    node** declarations;
-} BlockStatementNode;
+struct IfStatementNode : public node {
+    std::shared_ptr<node> branchExpr;
+    std::shared_ptr<node> thenStmt;
+    std::shared_ptr<node> elseStmt;
+};
 
-typedef struct {
-    node n;
-    node* array;
-    node* index;
-} ArrayIndexNode;
+struct WhileStatementNode : public node {
+    std::shared_ptr<node> loopExpr;
+    std::shared_ptr<node> loopStmt;
+};
 
-typedef struct {
-    node n;
-    node* called;
-    size_t argCount;
-    size_t argCapacity;
-    node** args;
-} FunctionCallNode;
+struct ForStatementNode : public node {
+    std::shared_ptr<node> initExpr;
+    std::shared_ptr<node> condExpr;
+    std::shared_ptr<node> incrementExpr;
+    std::shared_ptr<node> loopStmt;
+};
 
-typedef struct {
-    node n;
-    size_t count;
-    size_t capacity;
-    node** values;
-} ArrayConstructorNode;
+struct CaseNode : public node {
+    std::shared_ptr<node> caseExpr;
+    std::shared_ptr<node> caseStmt;
+};
 
-typedef struct { 
-    node n;
-    node* expr;
+struct SwitchStatementNode : public node {
+    std::shared_ptr<node> switchExpr;
+    std::vector<std::shared_ptr<CaseNode>> cases;
+};
+
+struct ReturnStatementNode : public node { 
+    std::shared_ptr<node> returnExpr;
+};
+
+struct BlockStatementNode : public node {  
+    std::shared_ptr<ScopeNode> scope;
+    std::vector<std::shared_ptr<node>> declarations;
+};
+
+struct ArrayIndexNode : public node {  
+    std::shared_ptr<node> array;
+    std::shared_ptr<node> index;
+};
+
+struct FunctionCallNode : public node {
+    std::shared_ptr<node> called;
+    std::vector<std::shared_ptr<node>> args;
+};
+
+struct ArrayConstructorNode : public node {
+    std::vector<std::shared_ptr<node>> values;
+};
+
+struct FieldCallNode : public node { 
+    std::shared_ptr<node> expr;
     Token op;
     Token field;
-} FieldCallNode;
+};
 
-typedef struct {
-    node n;
-    node* variable;
-    node* assignment;
-} AssignmentNode;
+struct LambdaNode : public node {
+    Ty returnType;
+    std::vector<Parameter> params;
+    std::shared_ptr<node> body;
+};
 
-typedef struct {
-    node n;
-    node* expression1;
+struct AssignmentNode : public node {
+    std::shared_ptr<node> variable;
+    std::shared_ptr<node> assignment;
+};
+
+struct BinaryNode : public node {
+    std::shared_ptr<node> expression1;
     Token op;
-    node* expression2;
-} BinaryNode;
+    std::shared_ptr<node> expression2;
+};
 
-typedef struct {
-    node n;
+struct UnaryNode : public node {
     Token op;
-    node* expression;
-} UnaryNode;
+    std::shared_ptr<node> expression;
+};
 
-typedef struct {
-    node n;
+struct VariableNode : public node {
     Token variable;
-} VariableNode;
+};
 
-typedef struct {
-    node n;
+struct LiteralNode : public node {
     Token value;
-} LiteralNode;
+};
 
-ScopeNode* newScope(ScopeNode* parent);
+struct ListInitNode : public node {
+    Ty type;
+    std::vector<std::shared_ptr<node>> values;
+};
+struct PlaceholderNode : public node {}; //used for giving function parameters a definition
 
-void freeScope(ScopeNode* node);
+std::shared_ptr<ScopeNode> newScope(std::shared_ptr<ScopeNode> parent);
 
-void printNodes(node* start, int depth);
+void freeScope(std::shared_ptr<ScopeNode> node);
 
-char* typeToString(Ty* type);
+void printNodes(std::shared_ptr<node> start, int depth);
 
-bool typecmp(Ty* a, Ty* b);
+std::string typeToString(Ty type);
 
-ProgramNode* parse(const char* src);
+bool typecmp(Ty a, Ty b);
+
+std::shared_ptr<ProgramNode> parse(const char* src);
 
 #endif

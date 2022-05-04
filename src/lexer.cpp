@@ -1,11 +1,11 @@
-#include <string.h>
+#include <cassert>
+#include <cstring>
+#include <cstdlib>
 #include "lexer.h"
 
-char* tokenToString(Token t)
+std::string tokenToString(Token t)
 {
-	char* result = calloc(t.length + 1, sizeof(char));
-	strncpy(result, t.start, t.length);
-	return result;
+	return std::string(t.start, t.length);
 }
 
 bool tokencmp(Token a, Token b)
@@ -190,7 +190,16 @@ inline static TokenType identifierType(Lexer* lexer)
                 }
             }
             break;
-        case 'l': return matchKeyword(lexer, 1, 2, "et", LET);
+        case 'l': 
+            if(lexer->current - lexer->start > 1)
+            {
+                switch(lexer->start[1])
+                {
+                    case 'e': return matchKeyword(lexer, 2, 1, "t", LET);
+                    case 'a': return matchKeyword(lexer, 2, 4, "mbda", LAMBDA);
+                }
+            }
+            break;
         case 'm': return matchKeyword(lexer, 1, 6, "utable", MUTABLE);
         case 'n': return matchKeyword(lexer, 1, 2, "ot", NOT);
         case 'o': return matchKeyword(lexer, 1, 1, "r", OR);
@@ -232,7 +241,9 @@ inline static Token identifier(Lexer* lexer)
 {
     if(*lexer->start == '_')
     {
+        const char* start = lexer->start;
         while(peek(lexer) == '_' ||isDigit(peek(lexer))) advance(lexer);
+        if(lexer->current == lexer->start + 1) return makeToken(lexer, UNDERSCORE);
     }
     if(isUppercase(*lexer->start) || (*lexer->start == '_' && isUppercase(lexer->current[-1])))
     {
@@ -314,7 +325,7 @@ inline static Token number(Lexer* lexer)
     {
         if(oct)
         {
-            char* endOfNumber = lexer->current;
+            const char* endOfNumber = lexer->current;
             lexer->current = lexer->start;
             while(isDigit(peek(lexer))) advance(lexer);
             if(lexer->current != endOfNumber) 
@@ -326,7 +337,7 @@ inline static Token number(Lexer* lexer)
         }
         else if (bin)
         {
-            char* endOfNumber = lexer->current;
+            const char* endOfNumber = lexer->current;
             lexer->current = lexer->start;
             while(isDigit(peek(lexer))) advance(lexer);
             if(lexer->current != endOfNumber) 

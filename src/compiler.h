@@ -1,9 +1,8 @@
 #ifndef compiler_header
 #define compiler_header
+#include <string>
 
-#include "core.h"
-
-bool compile(const char* src);
+bool compile(std::string src);
 
 
 #endif

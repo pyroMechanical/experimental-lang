@@ -1,7 +1,7 @@
 #ifndef lexer_header
 #define lexer_header
 
-#include "core.h"
+#include <string>
 
 typedef struct {
     const char* start;
@@ -20,9 +20,9 @@ typedef enum {
 	LESS, LESS_EQUAL,
 	GREATER, GREATER_EQUAL,
 	TYPE, LET,
-	IDENTIFIER, TYPEDEF,
+	IDENTIFIER, UNDERSCORE, TYPEDEF,
 	SWITCH, CASE, CLASS,
-	IMPLEMENT, USING,
+	IMPLEMENT, USING, LAMBDA,
 	MUTABLE,
 	//Literals
 	TRUE, FALSE,
@@ -47,7 +47,7 @@ typedef struct {
     int line;
 } Token;
 
-char* tokenToString(Token t);
+std::string tokenToString(Token t);
 
 bool tokencmp(Token a, Token b);
 
