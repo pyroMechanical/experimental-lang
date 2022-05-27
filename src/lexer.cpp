@@ -35,6 +35,16 @@ inline static bool isDigit(char c)
         return (c >= '0' && c <= '9');
 }
 
+inline static bool isOperator(char c)
+{
+    static const char ops[] = { '~', '!', '@', '#', '$', '%', '^', '&', '*', '-', '+', '=', '|', '[', ']', '<', '>', '?', '/', '\0'};
+    for(size_t i = 0; ops[i] != '\0'; i++)
+    {
+        if(c == ops[i]) return true;
+    }
+    return false;
+}
+
 inline static bool isAlpha(char c)
 {
     return (c >= 'a' && c <= 'z') ||
@@ -111,7 +121,10 @@ inline static void skipWhitespace(Lexer* lexer)
             case ' ':
             case '\r':
             case '\t':
+                advance(lexer);
+                break;
             case '\n':
+                lexer->line++;
                 advance(lexer);
                 break;
             case '/':
@@ -177,6 +190,7 @@ inline static TokenType identifierType(Lexer* lexer)
                 {
                     case 'a': return matchKeyword(lexer, 2, 3, "lse", FALSE);
                     case 'o': return matchKeyword(lexer, 2, 1, "r", FOR);
+                    //case 'u': return matchKeyword(lexer, 2, 2, "nc", FUNC);
                 }
             }
             break;
@@ -243,14 +257,44 @@ inline static Token identifier(Lexer* lexer)
     {
         const char* start = lexer->start;
         while(peek(lexer) == '_' ||isDigit(peek(lexer))) advance(lexer);
-        if(lexer->current == lexer->start + 1) return makeToken(lexer, UNDERSCORE);
+        if(lexer->current == lexer->start + 1 && !isAlpha(*lexer->current)) return makeToken(lexer, UNDERSCORE);
     }
-    if(isUppercase(*lexer->start) || (*lexer->start == '_' && isUppercase(lexer->current[-1])))
+    if(isUppercase(*lexer->start) || (*lexer->start == '_' && isUppercase(lexer->current[0])))
     {
         return typeToken(lexer);
     }
     while(isIdentifier(peek(lexer)) || isDigit(peek(lexer))) advance(lexer);
     return makeToken(lexer, identifierType(lexer)); //todo: replace with switch for kewords
+}
+
+inline static Token opName(Lexer* lexer)
+{
+    if(*lexer->current == '&' || *lexer->current == '*')
+    {
+        advance(lexer);
+        if(*lexer->current != ')') return errorToken(lexer, "'&' and '*' are not valid at the start of custom operators!");
+        advance(lexer);
+        return makeToken(lexer, IDENTIFIER);
+    }
+    while(*lexer->current != ')' && isOperator(*lexer->current)) advance(lexer);
+    if(*lexer->current != ')') 
+    {
+        advance(lexer);
+        return errorToken(lexer, "missing ')' in operator name!");
+    }
+
+    advance(lexer);
+    if(strncmp("(:)", lexer->start, 3) == 0 || strncmp("(->)", lexer->start, 4) == 0)
+    {
+        return errorToken(lexer, "cannot redefine '->'!");
+    }
+    return makeToken(lexer, IDENTIFIER);
+}
+
+inline static Token _operator(Lexer* lexer)
+{
+    while(isOperator(*lexer->current)) advance(lexer);
+    return makeToken(lexer, OPERATOR);
 }
 
 inline static Token number(Lexer* lexer)
@@ -357,7 +401,10 @@ inline static Token number(Lexer* lexer)
         }
     }
 }
-
+inline static Token character(Lexer* lexer)
+{
+    return makeToken(lexer, CHAR);
+}
 inline static Token string(Lexer* lexer)
 {
     while(peek(lexer) != '"' && !isAtEnd(lexer))
@@ -383,7 +430,7 @@ Token scanToken(Lexer* lexer)
 
     switch(c)
     {
-        case '(': return makeToken(lexer, PAREN);
+        case '(': return isOperator(*lexer->current) ? opName(lexer) : makeToken(lexer, PAREN);
         case ')': return makeToken(lexer, CLOSE_PAREN);
         case '{': return makeToken(lexer, BRACE);
         case '}': return makeToken(lexer, CLOSE_BRACE);
@@ -393,29 +440,27 @@ Token scanToken(Lexer* lexer)
         case ',': return makeToken(lexer, COMMA);
         case '.': return makeToken(lexer, DOT);
         case ':': return makeToken(lexer, COLON);
-        case '-': return makeToken(lexer, match(lexer, '>') ? ARROW : MINUS);
-        case '+': return makeToken(lexer, PLUS);
-        case '/': return makeToken(lexer, SLASH);
+        case '\'': return 
+        lexer->typeInfOnly ?
+         identifier(lexer) :
+          character(lexer);
         case '*': return makeToken(lexer, STAR);
-        case '&': return makeToken(lexer, 
-                match(lexer, '&') ? AND : AMPERSAND);
-        case '|' : return makeToken(lexer,
-                match(lexer, '|') ? OR : BIT_OR);
-        case '!': // != and !
-            return makeToken( lexer,
-                match(lexer, '=') ? BANG_EQUAL : BANG);
-        case '=': // == and =
-            return makeToken( lexer,
-                match(lexer, '=') ? EQUAL_EQUAL : EQUAL);
-        case '<': // <=, <<, <-, and <
-            return makeToken( lexer,
-                match(lexer, '=') ? LESS_EQUAL :
-                match(lexer, '<') ? SHIFT_LEFT : 
-                match(lexer, '-') ? LEFT_ARROW : LESS);
-        case '>': // >=, >>, and >
-            return makeToken( lexer,
-                match(lexer, '=') ? GREATER_EQUAL :
-                match(lexer, '>') ? SHIFT_RIGHT : GREATER);
+        case '&': return makeToken(lexer, AMPERSAND);
+        case '=': return isOperator(*lexer->current) ? _operator(lexer) : makeToken(lexer,EQUAL);
+
+        case '-':
+        case '+':
+        case '/':
+        case '|':
+        case '!':
+        case '<':
+        case '>':
+        case '^':
+        case '@':
+        case '#':
+        case '$':
+        case '%': return _operator(lexer);
+                
         case '"': return string(lexer);
         case '\n': 
             Token result = makeToken(lexer, NEWLINE);

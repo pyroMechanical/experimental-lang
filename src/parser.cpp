@@ -9,24 +9,14 @@ std::shared_ptr<ScopeNode> newScope(std::shared_ptr<ScopeNode> parent)
 {
     auto n = std::make_shared<ScopeNode>();
     n->parentScope = parent;
+    if(parent != nullptr) parent->childScopes.push_back(n);
     n->nodeType = NODE_SCOPE;
     return n;
 }
 
 bool typecmp(Ty a, Ty b)
 {
-    if(a.size() == b.size())
-    {
-        for(size_t i = 0; i < a.size(); i++)
-        {
-            if(strncmp(a[i].start, b[i].start, a[i].length) != 0)
-            {
-                return false;
-            }
-            return true;
-        }
-    }
-    return false;
+    return a.compare(b.c_str()) == 0;
 }
 
 typedef enum
@@ -48,6 +38,25 @@ typedef enum
     PRECEDENCE_PRIMARY
 } Precedence;
 
+Ty KindFromType(const Ty t)
+{
+    Ty result;
+    const char* type = "*";
+    const char* arrow = "->";
+    Lexer l = initLexer(t.c_str());
+    Token next = scanToken(&l);
+    while(next.type != EOF)
+    {
+        if(next.type == IDENTIFIER)
+        {
+            result.append(type).append(" ").append(arrow).append(" ");
+        }
+        next = scanToken(&l);
+    }
+    result.append(type);
+    return result;
+}
+
 typedef struct
 {
     std::shared_ptr<node>(*prefix)(Parser *parser, std::shared_ptr<ScopeNode> scope);
@@ -63,6 +72,7 @@ std::shared_ptr<node>unary(Parser *parser, std::shared_ptr<ScopeNode> scope);
 std::shared_ptr<node>binary(Parser *parser, std::shared_ptr<ScopeNode> scope, std::shared_ptr<node>n);
 std::shared_ptr<node>assignment(Parser *parser, std::shared_ptr<ScopeNode> scope, std::shared_ptr<node>n);
 std::shared_ptr<node>literal(Parser *parser, std::shared_ptr<ScopeNode> scope);
+std::shared_ptr<node>placeholder(Parser *parser, std::shared_ptr<ScopeNode> scope);
 std::shared_ptr<node>list_init(Parser *parser, std::shared_ptr<ScopeNode> scope);
 std::shared_ptr<node>lambda(Parser *parser, std::shared_ptr<ScopeNode> scope);
 std::shared_ptr<node>identifier(Parser *parser, std::shared_ptr<ScopeNode> scope);
@@ -99,8 +109,11 @@ std::unordered_map<TokenType, ParseRule> rules = {
     {GREATER_EQUAL, {nullptr, binary, PRECEDENCE_EQUALITY}},
     {TYPE, {list_init, nullptr, PRECEDENCE_NONE}},
     {LET, {nullptr, nullptr, PRECEDENCE_NONE}},
+    {FUNC, {nullptr, nullptr, PRECEDENCE_NONE}},
+    {TYPEVAR, {nullptr, nullptr, PRECEDENCE_NONE}},
     {IDENTIFIER, {identifier, nullptr, PRECEDENCE_NONE}},
-    {UNDERSCORE, {literal, nullptr, PRECEDENCE_NONE}},
+    {OPERATOR, {unary, binary, PRECEDENCE_NONE}}, //add precedence information from preprocessor
+    {UNDERSCORE, {placeholder, nullptr, PRECEDENCE_NONE}},
     {TYPEDEF, {nullptr, nullptr, PRECEDENCE_NONE}},
     {SWITCH, {nullptr, nullptr, PRECEDENCE_NONE}},
     {CASE, {nullptr, nullptr, PRECEDENCE_NONE}},
@@ -204,108 +217,316 @@ std::shared_ptr<node>block_stmt(Parser *parser, std::shared_ptr<ScopeNode>scope)
 
 std::shared_ptr<node>declaration(Parser *parser, std::shared_ptr<ScopeNode>scope);
 
-Ty resolve_type(Parser *parser, bool isDeclared)
+//this function generates strings to represnet arbitrary generic types, 
+//using the form "a", "b"... "z", "aa", "ab"...
+//returns the shortest unused string, and then generates the next one.
+Ty newGenericType()
+{
+    static std::vector<uint8_t> v = {0};
+    bool incremented = false;
+    Ty result;
+    result.reserve(v.size() + 1);
+    result.push_back('\'');
+    for(auto i : v)
+    {
+        result.push_back('a' + i);
+    }
+
+    for(auto it = v.rbegin(); it != v.rend(); it++)
+    {
+        if(*it != 25)
+        {
+            *it = (*it)+1;
+            incremented = true;
+            break;
+        }
+    }
+    if (incremented == false)
+    {
+        std::fill(v.begin(), v.end(), 0);
+        v.push_back(0);
+    }
+    return result;
+}
+
+Ty resolve_type_nogeneric(Parser *parser, bool isDeclared)
 {
     Ty type;
     Parser state = *parser;
-    size_t nested_brackets = 0;
     size_t nested_parens = 0;
-    
-    while (parser->next.type == TYPE || parser->next.type == IDENTIFIER || parser->next.type == BRACKET || parser->next.type == CLOSE_BRACKET || parser->next.type == STAR || parser->next.type == ARROW || parser->next.type == PAREN || parser->next.type == CLOSE_PAREN)
+    bool first = true;
+    bool exit = false;
+    while(exit == false)
     {
         switch(parser->current.type)
         {
-            case TYPE:
             case IDENTIFIER:
+            case TYPE:
             {
-                type.push_back(parser->current);
-                advance(parser);
-                break;
-            }
-            case BRACKET:
-            {
-                if(type.size() == 0)
+                switch(parser->next.type)
                 {
-                    *parser = state;
-                    return {};
-                }
-                else if (type.back().type == PAREN || type.back().type == BRACKET || type.back().type == ARROW)
-                {
-                    *parser = state;
-                    return {};
-                }
-                else
-                {
-                    nested_brackets++;
-                    type.push_back(parser->current);
-                    advance(parser);
-                }
-                break;
-            }
-            case CLOSE_BRACKET:
-            {
-                nested_brackets--;
-                type.push_back(parser->current);
-                advance(parser);
-                break;
-            }
-            case PAREN:
-            {
-                if(type.size() != 0)
-                {
-                    if(type.back().type != PAREN && type.back().type != ARROW)
+                    case TYPE:
+                    case IDENTIFIER:
+                    case OPERATOR:
+                    case ARROW:
+                    case STAR:
+                    case BRACKET:
                     {
-                        *parser = state;
-                        return {};
+                        if(first == false) type.append(" ");
+                        first = false;
+                        type.append(parser->current.start, parser->current.length);
+                        advance(parser);
+                        break;
+                    }
+                    case CLOSE_PAREN:
+                    {
+                        if(nested_parens > 0)
+                        {
+                            if(first == false) type.append(" ");
+                            first = false;
+                            type.append(parser->current.start, parser->current.length);
+                            advance(parser);
+                        }
+                        else
+                        {
+                            exit = true;
+                        }
+                        break;
+                    }
+                    case COMMA:
+                    {
+                        if(nested_parens > 0)
+                        {
+                            if(first == false) type.append(" ");
+                            first = false;
+                            type.append(parser->current.start, parser->current.length);
+                            advance(parser);
+                        }
+                        else
+                        {
+                            exit = true;
+                        }
+                        break;
+                    }
+                    default:
+                    {
+                        exit = true;
                     }
                 }
-                nested_parens++;
-                type.push_back(parser->current);
-                advance(parser);
                 break;
             }
-            case CLOSE_PAREN:
+            case COMMA:
+            case ARROW:
             {
-                nested_parens--;
-                type.push_back(parser->current);
-                advance(parser);
+                switch(parser->next.type)
+                {
+                    case TYPE:
+                    case IDENTIFIER:
+                    case PAREN:
+                    {
+                        if(first == false) type.append(" ");
+                        first = false;
+                        type.append(parser->current.start, parser->current.length);
+                        advance(parser);
+                        break;
+                    }
+                    default:
+                    {
+                        exit = true;
+                    }
+                }
                 break;
             }
             case STAR:
             {
-                if(type.size() == 0)
+                switch(parser->next.type)
                 {
-                    *parser = state;
-                    return {};
-                }
-                else if(type.back().type == PAREN || type.back().type == BRACE || type.back().type == ARROW) 
-                {
-                    *parser = state;
-                    return {};
-                }
-                else
-                {
-                    type.push_back(parser->current);
-                    advance(parser);
+                    case TYPE:
+                    case IDENTIFIER:
+                    case OPERATOR:
+                    case ARROW:
+                    {
+                        if(first == false) type.append(" ");
+                        first = false;
+                        type.append(parser->current.start, parser->current.length);
+                        advance(parser);
+                        break;
+                    }
+                    case CLOSE_PAREN:
+                    {
+                        if(nested_parens > 0)
+                        {
+                            if(first == false) type.append(" ");
+                            first = false;
+                            type.append(parser->current.start, parser->current.length);
+                            advance(parser);
+                        }
+                        else
+                        {
+                            exit = true;
+                        }
+                        break;
+                    }
+                    case COMMA:
+                    {
+                        if(nested_parens > 0)
+                        {
+                            if(first == false) type.append(" ");
+                            first = false;
+                            type.append(parser->current.start, parser->current.length);
+                            advance(parser);
+                        }
+                        else
+                        {
+                            exit = true;
+                        }
+                        break;
+                    }
+                    default:
+                    {
+                        exit = true;
+                    }
                 }
                 break;
             }
-            case ARROW:
+            case BRACKET:
             {
-                if(type.size() == 0)
+                switch(parser->next.type)
                 {
-                    *parser = state;
-                    return {};
+                    case CLOSE_BRACKET:
+                    {
+                        if(first == false) type.append(" ");
+                        first = false;
+                        type.append(parser->current.start, parser->current.length);
+                        advance(parser);
+                        switch(parser->next.type)
+                        {
+                            case ARROW:
+                            {
+                                if(first == false) type.append(" ");
+                                first = false;
+                                type.append(parser->current.start, parser->current.length);
+                                advance(parser);
+                                break;
+                            }
+                            case CLOSE_PAREN:
+                            {
+                                if(nested_parens > 0)
+                                {
+                                    if(first == false) type.append(" ");
+                                    first = false;
+                                    type.append(parser->current.start, parser->current.length);
+                                    advance(parser);
+                                }
+                                else
+                                {
+                                    exit = true;
+                                }
+                                break;
+                            }
+                            case COMMA:
+                            {
+                                if(nested_parens > 0)
+                                {
+                                    if(first == false) type.append(" ");
+                                    first = false;
+                                    type.append(parser->current.start, parser->current.length);
+                                    advance(parser);
+                                }
+                                else
+                                {
+                                    exit = true;
+                                }
+                                break;
+                            }
+                            default:
+                            {
+                                exit = true;
+                            }
+                        }
+                        break;
+                    }
+                    default:
+                    {
+                        exit = true;
+                    }
                 }
-                else if (type.back().type == PAREN || type.back().type == BRACKET || type.back().type == ARROW)
+                break;
+            }
+            case PAREN:
+            {
+                switch(parser->next.type)
                 {
-                    *parser = state;
-                    return {};
+                    case PAREN:
+                    case TYPE:
+                    case IDENTIFIER:
+                    {
+                        if(first == false) type.append(" ");
+                        first = false;
+                        type.append(parser->current.start, parser->current.length);
+                        advance(parser);
+                        nested_parens++;
+                        break;
+                    }
+                    default:
+                    {
+                        exit = true;
+                    }
                 }
-                else
+                break;
+            }
+            case CLOSE_PAREN:
+            {
+                switch(parser->next.type)
                 {
-                    type.push_back(parser->current);
-                    advance(parser);
+                    case TYPE:
+                    case IDENTIFIER:
+                    case OPERATOR:
+                    case ARROW:
+                    case STAR:
+                    case BRACKET:
+                    {
+                        if(first == false) type.append(" ");
+                        first = false;
+                        type.append(parser->current.start, parser->current.length);
+                        advance(parser);
+                        nested_parens--;
+                        break;
+                    }
+                    case CLOSE_PAREN:
+                    {
+                        if(nested_parens > 0)
+                        {
+                            if(first == false) type.append(" ");
+                            first = false;
+                            type.append(parser->current.start, parser->current.length);
+                            advance(parser);
+                        }
+                        else
+                        {
+                            exit = true;
+                        }
+                        break;
+                    }
+                    case COMMA:
+                    {
+                        if(nested_parens > 0)
+                        {
+                            if(first == false) type.append(" ");
+                            first = false;
+                            type.append(parser->current.start, parser->current.length);
+                            advance(parser);
+                        }
+                        else
+                        {
+                            exit = true;
+                        }
+                        break;
+                    }
+                    default:
+                    {
+                        exit = true;
+                    }
                 }
                 break;
             }
@@ -313,14 +534,22 @@ Ty resolve_type(Parser *parser, bool isDeclared)
     }
     if (isDeclared && (parser->current.type == TYPE || parser->current.type == IDENTIFIER || parser->current.type == BRACKET || parser->current.type == CLOSE_BRACKET || parser->current.type == STAR || parser->current.type == ARROW || parser->current.type == PAREN || parser->current.type == CLOSE_PAREN))
     {
-        type.push_back(parser->current);
+        if(first == false) type.append(" ");
+        type.append(parser->current.start, parser->current.length);
         advance(parser);
     }
-    if(nested_brackets != 0 || nested_parens != 0)
+    if(nested_parens != 0)
     {
         *parser = state;
-        return {};
+        return "";
     }
+    return type;
+}
+
+Ty resolve_type(Parser *parser, bool isDeclared)
+{
+    Ty type = resolve_type_nogeneric(parser, isDeclared);
+    if(type.size() == 0) return newGenericType();
     return type;
 }
 
@@ -341,7 +570,7 @@ static std::shared_ptr<node>var_decl(Parser *parser, Ty type, std::shared_ptr<Sc
     return std::static_pointer_cast<node>(result);
 }
 
-static std::shared_ptr<node> func_decl(Parser *parser, Ty returnType, std::shared_ptr<ScopeNode>scope)
+static std::shared_ptr<node> func_decl(Parser *parser, Ty returnType, std::shared_ptr<ScopeNode>scope, Ty isImplOf)
 {
     auto result = std::make_shared<FunctionDeclarationNode>();
     result->nodeType = NODE_FUNCTIONDECL;
@@ -353,8 +582,8 @@ static std::shared_ptr<node> func_decl(Parser *parser, Ty returnType, std::share
         if (fn->second->body != nullptr) 
         {
             errorAtCurrent(parser, "redefinition of existing function!");
+            return nullptr;
         }
-        return nullptr;
     }
 
     advance(parser);
@@ -368,6 +597,13 @@ static std::shared_ptr<node> func_decl(Parser *parser, Ty returnType, std::share
         result->params.push_back(p);
         if (parser->current.type == COMMA)
             advance(parser);
+    }
+    if(result->params.size() == 0)
+    {
+        Parameter _void;
+        _void.type = "Void";
+        _void.identifier = {IDENTIFIER, "", 0, result->identifier.line};
+        result->params.push_back(_void);
     }
     consume(parser, CLOSE_PAREN, "expected ')' after parameters!");
     if (parser->current.type == BRACE)
@@ -391,7 +627,26 @@ static std::shared_ptr<node> func_decl(Parser *parser, Ty returnType, std::share
         consume(parser, SEMICOLON, "expected '{' or ';' after function parameters!");
     }
 
-    scope->functions.insert(std::make_pair(tokenToString(result->identifier), result));
+    if(isImplOf.size() == 0) 
+    {
+        scope->functions.insert(std::make_pair(tokenToString(result->identifier), result));
+    }
+    else 
+    {
+        //TODO:
+        if(scope->functionImpls.find(tokenToString(result->identifier)) == scope->functionImpls.end())
+        {
+            scope->functionImpls.insert(std::make_pair(tokenToString(result->identifier), std::unordered_map<std::string, std::shared_ptr<FunctionDeclarationNode>>()));
+        }
+
+        auto impls = scope->functionImpls.at(tokenToString(result->identifier));
+
+        if(impls.find(isImplOf) == impls.end())
+        {
+            impls.insert(std::make_pair(isImplOf, result));
+        }
+        //error?
+    }
 
     return std::static_pointer_cast<node>(result);
 }
@@ -409,16 +664,25 @@ static std::shared_ptr<node>struct_or_union(Parser *parser, std::shared_ptr<Scop
     {
         result->struct_or_union = RecordDeclarationNode::IS_UNION;
     }
-    result->typeDefined = resolve_type(parser, true);
+    result->typeDefined = resolve_type_nogeneric(parser, true);
+    result->kind = "";
+    {
+        Lexer l = initLexer(result->typeDefined.c_str());
 
-    scope->types.insert(std::make_pair(tokenToString(result->typeDefined[0]), result));
+        scope->types.insert(std::make_pair(tokenToString(scanToken(&l)), result));
+    }
 
     consume(parser, BRACE, "expected '{' after type name!");
     while (parser->current.type != CLOSE_BRACE)
     {
-        Parameter p;
-        p.type = resolve_type(parser, false);
-        p.identifier = parser->current;
+        auto ptype = resolve_type_nogeneric(parser, false);
+        if(ptype.size() == 0 && result->struct_or_union == RecordDeclarationNode::IS_STRUCT)
+        {
+            errorAtCurrent(parser, "expected type for struct field!");
+        }
+        auto pidentifier = parser->current;
+        Parameter p {ptype, pidentifier};
+        scope->fields.insert(std::make_pair(tokenToString(pidentifier), std::make_pair(result->typeDefined, ptype)));
         advance(parser);
         result->fields.push_back(p);
         consume(parser, SEMICOLON, "expected ';' after field name!");
@@ -431,22 +695,26 @@ static std::shared_ptr<node>typedef_decl(Parser *parser, std::shared_ptr<ScopeNo
 {
     auto result = std::make_shared<TypedefNode>();
     result->nodeType = NODE_TYPEDEF;
-    result->typeAliased = resolve_type(parser, false);
     result->typeDefined = resolve_type(parser, true);
-    auto t = typeToString(result->typeDefined);
-    scope->typeAliases.insert(std::make_pair(t, result));
-
+    consume(parser, EQUAL, "expected '=' after defined type!");
+    result->typeAliased = resolve_type(parser, true);
+    if(result->typeDefined.size() == 0) assert(false);
+    {
+        Lexer l = initLexer(result->typeDefined.c_str());
+        scope->typeAliases.insert(std::make_pair(tokenToString(scanToken(&l)), result));
+    }
+    consume(parser, SEMICOLON, "expected ';' after typedef");
     return std::static_pointer_cast<node>(result);
 }
 
 static std::shared_ptr<node>class_decl(Parser *parser, std::shared_ptr<ScopeNode>scope)
 {
-
     //TODO: figure out what's wrong with resolve_type
     auto result = std::make_shared<ClassDeclarationNode>();
     result->nodeType = NODE_CLASSDECL;
     advance(parser);
     result->className = resolve_type(parser, true);
+    result->kind = ""; //this is calculated during static analysis!
     if (parser->current.type == COLON)
     {
         while (parser->current.type != BRACE)
@@ -464,14 +732,17 @@ static std::shared_ptr<node>class_decl(Parser *parser, std::shared_ptr<ScopeNode
     while (parser->current.type != CLOSE_BRACE)
     {
         auto type = resolve_type(parser, false);
-        std::shared_ptr<node> func = func_decl(parser, type, scope);
+        std::shared_ptr<node> func = func_decl(parser, type, scope, "");
 
         result->functions.push_back(func);
     }
 
     consume(parser, CLOSE_BRACE, "expected '}' after function declarations!");
 
-    scope->classes.insert(std::make_pair(tokenToString(result->className[0]), result));
+    {
+        Lexer l = initLexer(result->className.c_str());
+        scope->classes.insert(std::make_pair(tokenToString(scanToken(&l)), result));
+    }
 
     return std::static_pointer_cast<node>(result);
 }
@@ -479,15 +750,19 @@ static std::shared_ptr<node>class_decl(Parser *parser, std::shared_ptr<ScopeNode
 static std::shared_ptr<node> impl_decl(Parser* parser, std::shared_ptr<ScopeNode> scope)
 {
     auto n = std::make_shared<ClassImplementationNode>();
+    advance(parser);
     n->nodeType = NODE_CLASSIMPL;
     n->_class = parser->current;
     advance(parser);
-    n->implemented = resolve_type(parser, false);
+    n->implemented = resolve_type(parser, true);
     consume(parser, BRACE, "expected '{' before function definitions!");
     while(parser->current.type != CLOSE_BRACE)
     {
-        n->functions.push_back(func_decl(parser, {}, scope));
+        auto type = resolve_type(parser, false);
+        auto fd = func_decl(parser, type, scope, n->implemented);
+        n->functions.push_back(fd);
     }
+    consume(parser, CLOSE_BRACE, "expected '}' after function definitions!");
     return std::static_pointer_cast<node>(n);
 }
 
@@ -508,11 +783,12 @@ std::shared_ptr<node>declaration(Parser *parser, std::shared_ptr<ScopeNode> scop
         switch (parser->next.type)
         {
         case PAREN:
-            return func_decl(parser, type, scope);
+            return func_decl(parser, type, scope, "");
         case EQUAL:
         case SEMICOLON:
             return var_decl(parser, type, scope);
-            default: return statement(parser, scope);
+
+        default: return statement(parser, scope);
         }
         break;
     }
@@ -522,9 +798,9 @@ std::shared_ptr<node>declaration(Parser *parser, std::shared_ptr<ScopeNode> scop
         switch (parser->next.type)
         {
         case PAREN:
-            return func_decl(parser, {}, scope);
+            return func_decl(parser, newGenericType(), scope, "");
         default:
-            return var_decl(parser, {}, scope);
+            return var_decl(parser, newGenericType(), scope);
         }
         break;
     }
@@ -533,9 +809,12 @@ std::shared_ptr<node>declaration(Parser *parser, std::shared_ptr<ScopeNode> scop
         advance(parser);
         return struct_or_union(parser, scope);
     case TYPEDEF:
+        advance(parser);
         return typedef_decl(parser, scope);
     case CLASS:
         return class_decl(parser, scope);
+    case IMPLEMENT:
+        return impl_decl(parser, scope);
     default:
         return statement(parser, scope);
     }
@@ -596,7 +875,7 @@ static std::shared_ptr<node>for_stmt(Parser *parser, std::shared_ptr<ScopeNode>s
 
 static std::shared_ptr<node>if_stmt(Parser *parser, std::shared_ptr<ScopeNode>scope)
 {
-     auto result = std::make_shared<IfStatementNode>();
+    auto result = std::make_shared<IfStatementNode>();
     advance(parser);
     result->nodeType = NODE_IF;
     consume(parser, PAREN, "expected '(' after 'if!'");
@@ -637,7 +916,7 @@ std::shared_ptr<node>block_stmt(Parser *parser, std::shared_ptr<ScopeNode>scope)
     result->scope = next;
     while (parser->current.type != CLOSE_BRACE)
     {
-        result->declarations.push_back(declaration(parser, scope));
+        result->declarations.push_back(declaration(parser, next));
     }
     consume(parser, CLOSE_BRACE, "expect '}' at end of block!");
     return std::static_pointer_cast<node>(result);
@@ -734,15 +1013,22 @@ std::shared_ptr<node>literal(Parser *parser, std::shared_ptr<ScopeNode> scope)
     return std::static_pointer_cast<node>(n);
 }
 
+std::shared_ptr<node>placeholder(Parser* parser, std::shared_ptr<ScopeNode> scope)
+{
+    auto n = std::make_shared<PlaceholderNode>();
+    n->nodeType = NODE_PLACEHOLDER;
+    return n;
+}
+
 std::shared_ptr<node> list_init(Parser* parser, std::shared_ptr<ScopeNode> scope)
 {
     auto n = std::make_shared<ListInitNode>();
     n->nodeType = NODE_LISTINIT;
-    auto front = Ty{parser->previous};
+    auto front = tokenToString(parser->previous);
     if(parser->current.type != BRACE)
     {
         auto rest = resolve_type(parser, true);
-        front.insert(front.end(), rest.begin(), rest.end());
+        front.append(rest);
     }
     n->type = front;
     
@@ -771,7 +1057,7 @@ std::shared_ptr<node>lambda(Parser *parser, std::shared_ptr<ScopeNode> scope)
 {
     auto n = std::make_shared<LambdaNode>();
     n->nodeType = NODE_LAMBDA;
-    n->returnType = {};
+    n->returnType = newGenericType();
     consume(parser, PAREN, "expected '(' before lambda arguments!");
     while(parser->current.type != CLOSE_PAREN)
     {
@@ -801,9 +1087,28 @@ std::shared_ptr<node>lambda(Parser *parser, std::shared_ptr<ScopeNode> scope)
 
 std::shared_ptr<node>grouping(Parser *parser, std::shared_ptr<ScopeNode> scope)
 {
-    std::shared_ptr<node>result = expression(parser, scope);
-    consume(parser, CLOSE_PAREN, "expected a ')' after expression!");
-    return result;
+    std::shared_ptr<node> expr = expression(parser, scope);
+    switch(parser->current.type)
+    {
+        case CLOSE_PAREN:
+            advance(parser);
+            return expr;
+        case COMMA:
+        {
+            advance(parser);
+            auto tuple = std::make_shared<TupleConstructorNode>();
+            tuple->nodeType = NODE_TUPLE;
+            tuple->values.push_back(expr);
+            while(parser->current.type != CLOSE_PAREN)
+            {
+                tuple->values.push_back(expression(parser, scope));
+                if(parser->current.type != CLOSE_PAREN)
+                    consume(parser, COMMA, "expected ',' between tuple values!");
+            }
+            consume(parser, CLOSE_PAREN, "expected ')' after tuple constructor!");
+            return tuple;
+        }
+    }
 }
 
 std::shared_ptr<node>unary(Parser *parser, std::shared_ptr<ScopeNode> scope)
@@ -890,29 +1195,6 @@ std::shared_ptr<node>array_index(Parser *parser, std::shared_ptr<ScopeNode> scop
     return std::static_pointer_cast<node>(n);
 }
 
-std::string typeToString(Ty type)
-{
-    if(type.size() == 0) return "type unknown";
-    std::string result;
-    for (auto token : type)
-    {
-        switch (token.type)
-        {
-            case BRACKET:
-            {
-                result.append(tokenToString(token));
-                break;
-            }
-            default:
-            {
-                result.append(tokenToString(token)).append(" ");
-                break;
-            }
-        }
-    }
-    return result;
-}
-
 void printNodes(std::shared_ptr<node> start, int depth)
 {
     printf(">");
@@ -923,294 +1205,317 @@ void printNodes(std::shared_ptr<node> start, int depth)
     if(start == nullptr) return;
     switch (start->nodeType)
     {
-    case NODE_PROGRAM:
-    {
-        auto n = std::static_pointer_cast<ProgramNode>(start);
-        printf("\n");
-        printNodes(std::static_pointer_cast<node>(n->globalScope), depth + 1);
-        for (size_t i = 0; i < n->declarations.size(); i++)
+        case NODE_PROGRAM:
         {
-            printNodes(n->declarations[i], depth + 1);
+            auto n = std::static_pointer_cast<ProgramNode>(start);
+            printf("\n");
+            printNodes(std::static_pointer_cast<node>(n->globalScope), depth + 1);
+            for (size_t i = 0; i < n->declarations.size(); i++)
+            {
+                printNodes(n->declarations[i], depth + 1);
+            }
+            break;
         }
-        break;
-    }
-    case NODE_SCOPE:
-    {
-        std::shared_ptr<ScopeNode> n = std::static_pointer_cast<ScopeNode>(start);
-        //TODO: print each unordered_map's elements
-        break;
-    }
-    case NODE_VARIABLEDECL:
-    {
-        auto n = std::static_pointer_cast<VariableDeclarationNode>(start);
-        printf("Type: Variable Declaration; Name: %.*s Type: %s\n", n->identifier.length, n->identifier.start, typeToString(n->type).c_str());
-        printf("Value: \n");
-        if (n->value != nullptr)
-            printNodes(n->value, depth + 1);
-        else
-            printf("nullptr\n");
-        break;
-    }
-    case NODE_FUNCTIONDECL:
-    {
-        auto n = std::static_pointer_cast<FunctionDeclarationNode>(start);
-        printf("Type: Function Declaration; Name: %.*s, Return Type: %s\n", n->identifier.length, n->identifier.start, typeToString(n->returnType).c_str());
-        printf("Parameters: ");
-        bool first = true;
-        for (size_t i = 0; i < n->params.size(); i++)
+        case NODE_SCOPE:
         {
-            if (first)
-                first = false;
+            std::shared_ptr<ScopeNode> n = std::static_pointer_cast<ScopeNode>(start);
+            //TODO: print each unordered_map's elements
+            break;
+        }
+        case NODE_VARIABLEDECL:
+        {
+            auto n = std::static_pointer_cast<VariableDeclarationNode>(start);
+            printf("Type: Variable Declaration; Name: %.*s Type: %s\n", n->identifier.length, n->identifier.start, n->type.c_str());
+            printf("Value: \n");
+            if (n->value != nullptr)
+                printNodes(n->value, depth + 1);
             else
-                printf(", ");
-            printf("%s %.*s", typeToString(n->params[i].type).c_str(), n->params[i].identifier.length, n->params[i].identifier.start);
+                printf("nullptr\n");
+            break;
         }
-        printf("\n");
-        if (n->body != nullptr)
+        case NODE_FUNCTIONDECL:
         {
-            printf("Body:\n");
-            printNodes(n->body, depth + 1);
-        }
-        break;
-        
-    }
-    case NODE_TYPEDEF:
-    {
-        auto n = std::static_pointer_cast<TypedefNode>(start);
-        printf("Type: Typedef; Aliased Type: %s Defined Type: %s\n", typeToString(n->typeAliased).c_str(), typeToString(n->typeDefined).c_str());
-        break;
-    }
-    case NODE_RECORDDECL:
-    {
-        auto n = std::static_pointer_cast<RecordDeclarationNode>(start);
-        printf("Type: %s; Name: %s\n", 
-            n->struct_or_union == RecordDeclarationNode::IS_STRUCT ? "STRUCT" 
-            : n->struct_or_union == RecordDeclarationNode::IS_UNION ? "UNION"
-            : "UNDEFINED", typeToString(n->typeDefined).c_str());
-        bool first = true;
-        printf("Fields: ");
-        for (size_t i = 0; i < n->fields.size(); i++)
-        {
-            if (first)
-                first = false;
-            else
-                printf(", ");
-            printf("%s %.*s", typeToString(n->fields[i].type).c_str(), n->fields[i].identifier.length, n->fields[i].identifier.start);
-
-        }
-        printf("\n");
-        break;
-    }
-    case NODE_CLASSDECL:
-    {
-        auto n = std::static_pointer_cast<ClassDeclarationNode>(start);
-        printf("Type: Class; Name: %s\n", typeToString(n->className).c_str());
-        if (n->constraints.size() > 0)
-        {
-            printf("Constraints: ");
+            auto n = std::static_pointer_cast<FunctionDeclarationNode>(start);
+            printf("Type: Function Declaration; Name: %.*s, Return Type: %s\n", n->identifier.length, n->identifier.start, n->returnType.c_str());
+            printf("Parameters: ");
             bool first = true;
-            for (size_t i = 0; i < n->constraints.size(); i++)
+            for (size_t i = 0; i < n->params.size(); i++)
             {
                 if (first)
                     first = false;
                 else
                     printf(", ");
-                
-                printf("%s",typeToString(n->constraints[i]).c_str());
+                printf("%s %.*s", n->params[i].type.c_str(), n->params[i].identifier.length, n->params[i].identifier.start);
             }
+            printf("\n");
+            if (n->body != nullptr)
+            {
+                printf("Body:\n");
+                printNodes(n->body, depth + 1);
+            }
+            break;
+            
         }
-        printf("Functions:\n");
-        for (size_t i = 0; i < n->functions.size(); i++)
+        case NODE_TYPEDEF:
         {
-            printNodes(n->functions[i], depth);
+            auto n = std::static_pointer_cast<TypedefNode>(start);
+            printf("Type: Typedef; Aliased Type: %s Defined Type: %s\n", n->typeAliased.c_str(), n->typeDefined.c_str());
+            break;
         }
-        break;
-    }
-    case NODE_CONTINUE:
-    {
-        printf("Type: Continue;\n");
-        break;
-    }
-    case NODE_BREAK:
-    {
-        printf("Type: Break;\n");
-        break;
-    }
-    case NODE_RETURN:
-    {
-        auto n = std::static_pointer_cast<ReturnStatementNode>(start);
-        printf("Type: Return;\n");
-        printNodes(n->returnExpr, depth + 1);
-        break;
-    }
-    case NODE_SWITCH:
-    {
-        auto n = std::static_pointer_cast<SwitchStatementNode>(start);
-        printf("Type: Switch;\n");
-        for (size_t i = 0; i < n->cases.size(); i++)
+        case NODE_RECORDDECL:
         {
-            printNodes(std::static_pointer_cast<node>(n->cases[i]), depth + 1);
+            auto n = std::static_pointer_cast<RecordDeclarationNode>(start);
+            printf("Type: %s; Name: %s\n", 
+                n->struct_or_union == RecordDeclarationNode::IS_STRUCT ? "STRUCT" 
+                : n->struct_or_union == RecordDeclarationNode::IS_UNION ? "UNION"
+                : "UNDEFINED", n->typeDefined.c_str());
+            bool first = false;
+            printf("Fields: ");
+            for (size_t i = 0; i < n->fields.size(); i++)
+            {
+                if (first)
+                    first = false;
+                else
+                    printf(", ");
+                printf("%s %.*s", n->fields[i].type.c_str(), n->fields[i].identifier.length, n->fields[i].identifier.start);
+    
+            }
+            printf("\n");
+            break;
         }
-        break;
-    }
-    case NODE_CASE:
-    {
-        auto n = std::static_pointer_cast<CaseNode>(start);
-        printf("Case:\n");
-        printNodes(n->caseExpr, depth + 1);
-        printf("Result:\n");
-        printNodes(n->caseStmt, depth + 1);
-        break;
-    }
-    case NODE_FOR:
-    {
-        auto n = std::static_pointer_cast<ForStatementNode>(start);
-        printf("Type: For Statement;\n");
-        if (n->initExpr != nullptr)
+        case NODE_CLASSDECL:
         {
-            printf("Initialization Expression: \n");
-            printNodes(n->initExpr, depth + 1);
+            auto n = std::static_pointer_cast<ClassDeclarationNode>(start);
+            printf("Type: Class; Name: %s\n", n->className.c_str());
+            if (n->constraints.size() > 0)
+            {
+                printf("Constraints: ");
+                bool first = false;
+                for (size_t i = 0; i < n->constraints.size(); i++)
+                {
+                    if (first)
+                        first = false;
+                    else
+                        printf(", ");
+                    
+                    printf("%s",n->constraints[i].c_str());
+                }
+            }
+            printf("Functions:\n");
+            for (size_t i = 0; i < n->functions.size(); i++)
+            {
+                printNodes(n->functions[i], depth);
+            }
+            break;
         }
-        if (n->condExpr != nullptr)
+        case NODE_CLASSIMPL:
         {
+            auto n = std::static_pointer_cast<ClassImplementationNode>(start);
+            printf("Type: Class Implementation; Class Name: %s\n", tokenToString(n->_class).c_str());
+            printf("Implemented Type: %s\n", n->implemented.c_str());
+            printf("Function Specializations:\n");
+            for(auto f : n->functions)
+            {
+                printNodes(f, depth + 1);
+            }
+            break;
+        }
+        case NODE_CONTINUE:
+        {
+            printf("Type: Continue;\n");
+            break;
+        }
+        case NODE_BREAK:
+        {
+            printf("Type: Break;\n");
+            break;
+        }
+        case NODE_RETURN:
+        {
+            auto n = std::static_pointer_cast<ReturnStatementNode>(start);
+            printf("Type: Return;\n");
+            printNodes(n->returnExpr, depth + 1);
+            break;
+        }
+        case NODE_SWITCH:
+        {
+            auto n = std::static_pointer_cast<SwitchStatementNode>(start);
+            printf("Type: Switch;\n");
+            for (size_t i = 0; i < n->cases.size(); i++)
+            {
+                printNodes(std::static_pointer_cast<node>(n->cases[i]), depth + 1);
+            }
+            break;
+        }
+        case NODE_CASE:
+        {
+            auto n = std::static_pointer_cast<CaseNode>(start);
+            printf("Case:\n");
+            printNodes(n->caseExpr, depth + 1);
+            printf("Result:\n");
+            printNodes(n->caseStmt, depth + 1);
+            break;
+        }
+        case NODE_FOR:
+        {
+            auto n = std::static_pointer_cast<ForStatementNode>(start);
+            printf("Type: For Statement;\n");
+            if (n->initExpr != nullptr)
+            {
+                printf("Initialization Expression: \n");
+                printNodes(n->initExpr, depth + 1);
+            }
+            if (n->condExpr != nullptr)
+            {
+                printf("Conditional Expression: \n");
+                printNodes(n->condExpr, depth + 1);
+            }
+            if (n->incrementExpr != nullptr)
+            {
+                printf("Increment Expression: \n");
+                printNodes(n->incrementExpr, depth + 1);
+            }
+            printf("Looping Statement: \n");
+            printNodes(n->loopStmt, depth + 1);
+            break;
+        }
+        case NODE_IF:
+        {
+            auto n = std::static_pointer_cast<IfStatementNode>(start);
+            printf("Type: If Statement;\n");
             printf("Conditional Expression: \n");
-            printNodes(n->condExpr, depth + 1);
+            printNodes(n->branchExpr, depth + 1);
+            printf("Then branch:\n");
+            printNodes(n->thenStmt, depth + 1);
+            if (n->elseStmt != nullptr)
+            {
+                printf("Else branch:\n");
+                printNodes(n->elseStmt, depth + 1);
+            }
+            break;
         }
-        if (n->incrementExpr != nullptr)
+        case NODE_WHILE:
         {
-            printf("Increment Expression: \n");
-            printNodes(n->incrementExpr, depth + 1);
+            auto n = std::static_pointer_cast<WhileStatementNode>(start);
+            printf("Type: While Statement;\n");
+            printf("Loop Condition: \n");
+            printNodes(n->loopExpr, depth + 1);
+            printf("Loop Statement: \n");
+            printNodes(n->loopStmt, depth + 1);
+            break;
         }
-        printf("Looping Statement: \n");
-        printNodes(n->loopStmt, depth + 1);
-        break;
-    }
-    case NODE_IF:
-    {
-        auto n = std::static_pointer_cast<IfStatementNode>(start);
-        printf("Type: If Statement;\n");
-        printf("Conditional Expression: \n");
-        printNodes(n->branchExpr, depth + 1);
-        printf("Then branch:\n");
-        printNodes(n->thenStmt, depth + 1);
-        if (n->elseStmt != nullptr)
+        case NODE_BLOCK:
         {
-            printf("Else branch:\n");
-            printNodes(n->elseStmt, depth + 1);
+            auto n = std::static_pointer_cast<BlockStatementNode>(start);
+            printf("Type: Block Statement;\n");
+            // printNodes((node*)n->scope, depth + 1);
+            for (size_t i = 0; i < n->declarations.size(); i++)
+            {
+                printNodes(n->declarations[i], depth + 1);
+            }
+            break;
         }
-        break;
-    }
-    case NODE_WHILE:
-    {
-        auto n = std::static_pointer_cast<WhileStatementNode>(start);
-        printf("Type: While Statement;\n");
-        printf("Loop Condition: \n");
-        printNodes(n->loopExpr, depth + 1);
-        printf("Loop Statement: \n");
-        printNodes(n->loopStmt, depth + 1);
-        break;
-    }
-    case NODE_BLOCK:
-    {
-        auto n = std::static_pointer_cast<BlockStatementNode>(start);
-        printf("Type: Block Statement;\n");
-        // printNodes((node*)n->scope, depth + 1);
-        for (size_t i = 0; i < n->declarations.size(); i++)
+        case NODE_LITERAL:
         {
-            printNodes(n->declarations[i], depth + 1);
+            auto n = std::static_pointer_cast<LiteralNode>(start);
+            printf("Type: Literal; Value: %.*s.\n", n->value.length, n->value.start);
+            break;
         }
-        break;
-    }
-    case NODE_LITERAL:
-    {
-        auto n = std::static_pointer_cast<LiteralNode>(start);
-        printf("Type: Literal; Value: %.*s.\n", n->value.length, n->value.start);
-        break;
-    }
-    case NODE_IDENTIFIER:
-    {
-        auto n = std::static_pointer_cast<VariableNode>(start);
-        printf("Type: Identifier; Name: %.*s.\n", n->variable.length, n->variable.start);
-        break;
-    }
-    case NODE_LISTINIT:
-    {
-        auto n = std::static_pointer_cast<ListInitNode>(start);
-        printf("Type: List Init; Name: %s\n", typeToString(n->type).c_str());
-        printf("Values:\n");
-        for(auto v : n->values)
+        case NODE_IDENTIFIER:
         {
-            printNodes(v, depth + 1);
+            auto n = std::static_pointer_cast<VariableNode>(start);
+            printf("Type: Identifier; Name: %.*s.\n", n->variable.length, n->variable.start);
+            break;
         }
-        break;
-    }
-    case NODE_UNARY:
-    {
-        auto n = std::static_pointer_cast<UnaryNode>(start);
-        printf("Type: Unary Operation; Operator: %.*s.\n", n->op.length, n->op.start);
-        printNodes(n->expression, depth + 1);
-        break;
-    }
-    case NODE_BINARY:
-    {
-        auto n = std::static_pointer_cast<BinaryNode>(start);
-        printf("Type: Binary Operation; Operator: %.*s.\n", n->op.length, n->op.start);
-        printNodes(n->expression1, depth + 1);
-        printNodes(n->expression2, depth + 1);
-        break;
-    }
-    case NODE_ASSIGNMENT:
-    {
-        auto n = std::static_pointer_cast<AssignmentNode>(start);
-        printf("Type: Assignment;\n");
-        printNodes(n->variable, depth + 1);
-        printNodes(n->assignment, depth + 1);
-        break;
-    }
-    case NODE_FIELDCALL:
-    {
-        auto n = std::static_pointer_cast<FieldCallNode>(start);
-        printf("Type: Field Call;\n");
-        printf("Operation Type: %.*s.\n", n->op.length, n->op.start);
-        printNodes(n->expr, depth + 1);
-        for(int i = 0; i < depth; i++) printf(" ");
-        printf("Field: %.*s\n", n->field.length, n->field.start);
-        break;
-    }
-    case NODE_ARRAYCONSTRUCTOR:
-    {
-        auto n = std::static_pointer_cast<ArrayConstructorNode>(start);
-        printf("Type: Array Constructor;\n");
-        for (size_t i = 0; i < n->values.size(); i++)
+        case NODE_LISTINIT:
         {
-            printNodes(n->values[i], depth + 1);
+            auto n = std::static_pointer_cast<ListInitNode>(start);
+            printf("Type: List Init; Name: %s\n", n->type.c_str());
+            printf("Values:\n");
+            for(auto v : n->values)
+            {
+                printNodes(v, depth + 1);
+            }
+            break;
         }
-        break;
-    }
-    case NODE_FUNCTIONCALL:
-    {
-        auto n = std::static_pointer_cast<FunctionCallNode>(start);
-        printf("Type: Function Call;\n");
-        printNodes(n->called, depth + 1);
-        for (size_t i = 0; i < n->args.size(); i++)
+        case NODE_TUPLE:
         {
-            printNodes(n->args[i], depth + 1);
+            auto n = std::static_pointer_cast<TupleConstructorNode>(start);
+            printf("Type: Tuple Constructor\n");
+            printf("Values:\n");
+            for(auto v : n->values)
+            {
+                printNodes(v, depth + 1);
+            }
+            break;
         }
-        break;
-    }
-    case NODE_ARRAYINDEX:
-    {
-        auto n = std::static_pointer_cast<ArrayIndexNode>(start);
-        printf("Type: Array Index;\n");
-        printNodes(n->array, depth + 1);
-        printNodes(n->index, depth + 1);
-        break;
-    }
-    default:
-    {
-        printf("Unimplemented!");
-        assert(false);
-    }
+        case NODE_UNARY:
+        {
+            auto n = std::static_pointer_cast<UnaryNode>(start);
+            printf("Type: Unary Operation; Operator: %.*s.\n", n->op.length, n->op.start);
+            printNodes(n->expression, depth + 1);
+            break;
+        }
+        case NODE_BINARY:
+        {
+            auto n = std::static_pointer_cast<BinaryNode>(start);
+            printf("Type: Binary Operation; Operator: %.*s.\n", n->op.length, n->op.start);
+            printNodes(n->expression1, depth + 1);
+            printNodes(n->expression2, depth + 1);
+            break;
+        }
+        case NODE_ASSIGNMENT:
+        {
+            auto n = std::static_pointer_cast<AssignmentNode>(start);
+            printf("Type: Assignment;\n");
+            printNodes(n->variable, depth + 1);
+            printNodes(n->assignment, depth + 1);
+            break;
+        }
+        case NODE_FIELDCALL:
+        {
+            auto n = std::static_pointer_cast<FieldCallNode>(start);
+            printf("Type: Field Call;\n");
+            printf("Operation Type: %.*s.\n", n->op.length, n->op.start);
+            printNodes(n->expr, depth + 1);
+            for(int i = 0; i < depth; i++) printf(" ");
+            printf("Field: %.*s\n", n->field.length, n->field.start);
+            break;
+        }
+        case NODE_ARRAYCONSTRUCTOR:
+        {
+            auto n = std::static_pointer_cast<ArrayConstructorNode>(start);
+            printf("Type: Array Constructor;\n");
+            for (size_t i = 0; i < n->values.size(); i++)
+            {
+                printNodes(n->values[i], depth + 1);
+            }
+            break;
+        }
+        case NODE_FUNCTIONCALL:
+        {
+            auto n = std::static_pointer_cast<FunctionCallNode>(start);
+            printf("Type: Function Call;\n");
+            printNodes(n->called, depth + 1);
+            for (size_t i = 0; i < n->args.size(); i++)
+            {
+                printNodes(n->args[i], depth + 1);
+            }
+            break;
+        }
+        case NODE_ARRAYINDEX:
+        {
+            auto n = std::static_pointer_cast<ArrayIndexNode>(start);
+            printf("Type: Array Index;\n");
+            printNodes(n->array, depth + 1);
+            printNodes(n->index, depth + 1);
+            break;
+        }
+        default:
+        {
+            printf("Unimplemented!");
+            system("pause");
+        }
     }
 }
 
@@ -1236,9 +1541,9 @@ std::shared_ptr<ProgramNode> parse(const char *src)
         }
     }
     ast->hadError = parser.hadError;
-    if (!ast->hadError)
-    {
-        //printNodes(std::static_pointer_cast<node>(ast), 0);
-    }
+    //if (!ast->hadError)
+    //{
+    //    printNodes(std::static_pointer_cast<node>(ast), 0);
+    //}
     return ast;
 }

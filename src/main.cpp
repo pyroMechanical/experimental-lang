@@ -23,6 +23,7 @@ static void repl()
 		{
 		bool result = compile(source);
 		std::cout << "\n" << (result ? "COMPILE_SUCCESS" : "COMPILE_FAILURE") << std::endl;
+		source.clear();
 		std::cout << "> ";
 		}
 		else

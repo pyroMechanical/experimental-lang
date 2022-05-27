@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
+#include <deque>
 #include "lexer.h"
 
 struct Parser {
@@ -48,24 +49,20 @@ enum NodeType {
     NODE_LAMBDA,
     NODE_LITERAL,
     NODE_LISTINIT,
+    NODE_TUPLE,
     NODE_PLACEHOLDER,
     NODE_SCOPE,
 };
 
 struct node {
     NodeType nodeType;
+    char* begin;
+    char* end;
 };
 
-enum Kind {
-    PLAINTYPE,
-    FUNCTIONTYPE,
-    GENERICTYPE
-};
-
-typedef std::vector<Token> Ty;
+typedef std::string Ty;
 
 struct Parameter {
-  
     Ty type;
     Token identifier;
 };
@@ -77,6 +74,7 @@ struct TypedefNode : public node {
 
 struct RecordDeclarationNode : public node {
     Ty  typeDefined;
+    Ty kind;
     std::vector<Parameter> fields;
     enum { UNDEFINED, IS_STRUCT, IS_UNION } struct_or_union;
 };
@@ -96,6 +94,7 @@ struct VariableDeclarationNode : public node {
 
 struct ClassDeclarationNode : public node {
     Ty className;
+    Ty kind;
     std::vector<Ty> constraints;
     std::vector<std::shared_ptr<node>> functions;
 };
@@ -106,16 +105,21 @@ struct ClassImplementationNode : public node {
     std::vector<std::shared_ptr<node>> functions;
 };
 
-struct ScopeNode;
-
 struct ScopeNode : public node {
     std::shared_ptr<ScopeNode> parentScope;
+    std::vector<std::weak_ptr<ScopeNode>> childScopes;
     std::unordered_map<std::string, std::shared_ptr<VariableDeclarationNode>> variables;
     std::unordered_map<std::string, std::shared_ptr<RecordDeclarationNode>> types;
+    std::unordered_multimap<std::string, std::pair<Ty, Ty>> fields;
     std::unordered_map<std::string, std::shared_ptr<TypedefNode>> typeAliases;
     std::unordered_map<std::string, std::shared_ptr<FunctionDeclarationNode>> functions;
     std::unordered_map<std::string, std::shared_ptr<ClassDeclarationNode>> classes;
-    std::unordered_map<std::string, std::shared_ptr<node>> classImpls; //TODO: add class implementation node here
+    std::unordered_map<std::string, std::shared_ptr<node>> classImpls;
+    std::unordered_map<std::string, std::unordered_map<std::string, std::shared_ptr<FunctionDeclarationNode>>> functionImpls;
+    std::deque<std::pair<Ty, Ty>> constraints;
+    std::deque<std::pair<Ty, std::vector<Ty>>> soft_constraints;
+    std::deque<std::pair<Ty, Ty>> weak_constraints;
+    std::unordered_map<Ty, std::shared_ptr<node>> nodeTVars;
 };
 
 struct ProgramNode : public node {
@@ -123,8 +127,6 @@ struct ProgramNode : public node {
     std::shared_ptr<ScopeNode> globalScope;
     bool hadError;
 };
-
-
 
 struct IfStatementNode : public node {
     std::shared_ptr<node> branchExpr;
@@ -213,6 +215,10 @@ struct LiteralNode : public node {
     Token value;
 };
 
+struct TupleConstructorNode : public node {
+    std::vector<std::shared_ptr<node>> values;
+};
+
 struct ListInitNode : public node {
     Ty type;
     std::vector<std::shared_ptr<node>> values;
@@ -225,9 +231,9 @@ void freeScope(std::shared_ptr<ScopeNode> node);
 
 void printNodes(std::shared_ptr<node> start, int depth);
 
-std::string typeToString(Ty type);
-
 bool typecmp(Ty a, Ty b);
+
+Ty newGenericType();
 
 std::shared_ptr<ProgramNode> parse(const char* src);
 

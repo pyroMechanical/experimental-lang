@@ -7,6 +7,7 @@ typedef struct {
     const char* start;
     const char* current;
     int line;
+	bool typeInfOnly = false;
 } Lexer;
 
 typedef enum {
@@ -19,8 +20,8 @@ typedef enum {
 	BANG, BANG_EQUAL, EQUAL_EQUAL,
 	LESS, LESS_EQUAL,
 	GREATER, GREATER_EQUAL,
-	TYPE, LET,
-	IDENTIFIER, UNDERSCORE, TYPEDEF,
+	TYPE, LET, FUNC, TYPEVAR,
+	IDENTIFIER, OPERATOR, UNDERSCORE, TYPEDEF,
 	SWITCH, CASE, CLASS,
 	IMPLEMENT, USING, LAMBDA,
 	MUTABLE,
