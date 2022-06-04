@@ -201,6 +201,7 @@ inline static TokenType identifierType(Lexer* lexer)
                 {
                     case 'f': return matchKeyword(lexer, 2, 0, "", IF);
                     case 'm': return matchKeyword(lexer, 2, 7, "plement", IMPLEMENT);
+                    case 'n': return matchKeyword(lexer, 2, 3, "fix", INFIX);
                 }
             }
             break;
@@ -217,6 +218,15 @@ inline static TokenType identifierType(Lexer* lexer)
         case 'm': return matchKeyword(lexer, 1, 6, "utable", MUTABLE);
         case 'n': return matchKeyword(lexer, 1, 2, "ot", NOT);
         case 'o': return matchKeyword(lexer, 1, 1, "r", OR);
+        case 'p': 
+            if(lexer->current - lexer->start > 1)
+            {
+                switch(lexer->start[1])
+                {
+                    case 'r': return matchKeyword(lexer, 2, 4, "efix", PREFIX);
+                    case 'o': return matchKeyword(lexer, 2, 5, "stfix", POSTFIX);
+                }
+            }
         case 'r': return matchKeyword(lexer, 1, 5, "eturn", RETURN);
         case 's':
             if(lexer->current - lexer->start > 1)
@@ -400,7 +410,9 @@ inline static Token number(Lexer* lexer)
             return makeToken(lexer, INT);
         }
     }
+    return makeToken(lexer, INT);
 }
+
 inline static Token character(Lexer* lexer)
 {
     return makeToken(lexer, CHAR);
@@ -444,9 +456,10 @@ Token scanToken(Lexer* lexer)
         lexer->typeInfOnly ?
          identifier(lexer) :
           character(lexer);
-        case '*': return makeToken(lexer, STAR);
-        case '&': return makeToken(lexer, AMPERSAND);
         case '=': return isOperator(*lexer->current) ? _operator(lexer) : makeToken(lexer,EQUAL);
+        
+        case '*': return makeToken(lexer, OPERATOR);
+        case '&': return makeToken(lexer, OPERATOR);
 
         case '-':
         case '+':
@@ -463,8 +476,12 @@ Token scanToken(Lexer* lexer)
                 
         case '"': return string(lexer);
         case '\n': 
+        {
             Token result = makeToken(lexer, NEWLINE);
             lexer->line++;
             return result;
+        }
+        default: 
+            return errorToken(lexer, "unknown character!");
     }
 }

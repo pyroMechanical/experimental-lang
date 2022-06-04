@@ -9,6 +9,8 @@
 #include "semant.h"
 #include <algorithm>
 
+//TODO: arrayIndex is an evil hack and should be replaced by defining a ([]) operator
+
 static bool typesEqual(Ty type1, Ty type2)
 {
    return type1.compare(type2) == 0;
@@ -65,11 +67,8 @@ Ty returnTypeFromFunctionType(Ty type)
         }
         if(depth > 0) {}//error: type is invalid!
     }
-    else
-    {
-        result.push_back(type.back());
-        return result;
-    }
+    result.push_back(type.back());
+    return result;
 }
 
 Ty argsFromFunctionType(Ty type)
@@ -133,8 +132,8 @@ Ty firstParameterFromFunctionType(Ty type)
     else
     {
         result.append(tokenToString(tokens.front()));
-        return result;
     }
+    return result;
 }
 
 std::vector<Ty> functionTypeSplit(Ty type)
@@ -380,7 +379,7 @@ Ty typeInf(std::shared_ptr<node> n, std::shared_ptr<ScopeNode> currentScope)
         {
             auto ret = std::static_pointer_cast<ReturnStatementNode>(n);
             if(ret->returnExpr) return typeInf(ret->returnExpr, currentScope);
-            else return "IO Void";
+            else return "Void";
         }
         case NODE_BREAK:
         {
@@ -547,11 +546,26 @@ Ty typeInf(std::shared_ptr<node> n, std::shared_ptr<ScopeNode> currentScope)
         }
         case NODE_ARRAYCONSTRUCTOR:
         {
-            return "";
+            auto arr = std::static_pointer_cast<ArrayConstructorNode>(n);
+            Ty previous = "";
+            for(auto v : arr->values)
+            {
+                Ty curr = typeInf(v, currentScope);
+                if(!previous.empty())
+                {
+                    currentScope->constraints.emplace_back(previous, curr);
+                }
+                previous = curr;
+            }
+            return previous.append("[]");
         }
         case NODE_ARRAYINDEX:
         {
-            return "";
+            auto index = std::static_pointer_cast<ArrayIndexNode>(n);
+            auto arrayType = typeInf(index->array, currentScope);
+            Ty indexedType = newGenericType();
+            currentScope->constraints.emplace_back(std::string(indexedType).append("[]"), arrayType);
+            return indexedType;
         }
         case NODE_IDENTIFIER:
         {
@@ -618,52 +632,18 @@ Ty typeInf(std::shared_ptr<node> n, std::shared_ptr<ScopeNode> currentScope)
         case NODE_LISTINIT:
         {
             auto init = std::static_pointer_cast<ListInitNode>(n);
-            Ty initType;
-            std::shared_ptr<node> type = nullptr;
+            std::vector<Token> initType;
             {
                 Lexer l = initLexer(init->type.c_str());
-                initType = tokenToString(scanToken(&l));
-                type = findInScope(initType, currentScope);
-            }
-            if(type != nullptr)
-            {
-                switch(type->nodeType)
+                Token t = scanToken(&l);
+                while(t.type != EOF_)
                 {
-                    case NODE_RECORDDECL:
-                    {
-                        //TODO: make sure the number of data members is the same, and add the types to the constraints
-                        auto rd = std::static_pointer_cast<RecordDeclarationNode>(type);
-                        if(rd->struct_or_union == RecordDeclarationNode::IS_STRUCT)
-                        {
-                            if(init->values.size() != rd->fields.size())
-                            {
-                                //error: too few/many fields
-                                system("pause");
-                            }
-                            for(size_t i = 0; i < init->values.size(); i++)
-                            {
-                                auto vType = typeInf(init->values[i], currentScope);
-                                currentScope->constraints.push_back(std::make_pair(vType, rd->fields[i].type));
-                            }
-                            return initType;
-                        }
-                        else if(rd->struct_or_union == RecordDeclarationNode::IS_UNION)
-                        {
-                            if( init->values.size() > 1)
-                            {
-                                //error: too many fields
-                                system("pause");
-                            }
-
-                        }
-                    }
-                    default:
-                    {
-                        //error
-                        system("pause");
-                    }
+                    initType.push_back(t);
+                    t = scanToken(&l);
                 }
             }
+            std::vector<Token> resultType;
+            
             return "";
         }
         case NODE_TUPLE:
@@ -686,8 +666,9 @@ Ty typeInf(std::shared_ptr<node> n, std::shared_ptr<ScopeNode> currentScope)
         {
             return "%Void";
         }
-        case NODE_SCOPE:
+        default:
         {
+            system("pause");
             return "";
         }
     }
@@ -1271,6 +1252,11 @@ std::deque<std::pair<Ty, Ty>> resolveConstraints(std::deque<std::pair<Ty, Ty>> c
         auto constraint = constraints.front();
         constraints.pop_front();
         if(constraint.first.compare(constraint.second) == 0) continue;
+        if(isupper(constraint.first.front()) && isupper(constraint.second.front()))
+        {
+            printf("error: type %s is not equal to %s!", constraint.first.c_str(), constraint.second.c_str());
+            return {};
+        }
         else if (isFunctionType(constraint.first) && isFunctionType(constraint.second))
         {
             auto t1 = firstParameterFromFunctionType(constraint.first);
@@ -1365,6 +1351,7 @@ std::shared_ptr<ProgramNode> analyze(const char *src)
         printConstraints(ast->globalScope);
         auto constraints = flattenConstraints(ast->globalScope);
         auto substitutions = resolveConstraints(constraints);
+        if(substitutions.empty()) ast->hadError = true;
         for(auto substitution : substitutions)
         {
             std::cout << "Substitution: " << substitution.first << " => " << substitution.second << "\n";

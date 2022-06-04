@@ -19,25 +19,6 @@ bool typecmp(Ty a, Ty b)
     return a.compare(b.c_str()) == 0;
 }
 
-typedef enum
-{
-    PRECEDENCE_NONE,
-    PRECEDENCE_APPLY,
-    PRECEDENCE_ASSIGNMENT,
-    PRECEDENCE_BITWISE_OR,
-    PRECEDENCE_BITWISE_AND,
-    PRECEDENCE_LOGICAL_OR,
-    PRECEDENCE_LOGICAL_AND,
-    PRECEDENCE_EQUALITY,
-    PRECEDENCE_COMPARISON,
-    PRECEDENCE_SHIFT,
-    PRECEDENCE_ADD,
-    PRECEDENCE_MULTIPLY,
-    PRECEDENCE_PREFIX,
-    PRECEDENCE_POSTFIX,
-    PRECEDENCE_PRIMARY
-} Precedence;
-
 Ty KindFromType(const Ty t)
 {
     Ty result;
@@ -57,13 +38,6 @@ Ty KindFromType(const Ty t)
     return result;
 }
 
-typedef struct
-{
-    std::shared_ptr<node>(*prefix)(Parser *parser, std::shared_ptr<ScopeNode> scope);
-    std::shared_ptr<node>(*infix)(Parser *parser, std::shared_ptr<ScopeNode> scope, std::shared_ptr<node> n);
-    Precedence precedence;
-} ParseRule;
-
 std::shared_ptr<node>expression(Parser *parser, std::shared_ptr<ScopeNode> scope);
 
 std::shared_ptr<node>grouping(Parser *parser, std::shared_ptr<ScopeNode> scope);
@@ -82,71 +56,71 @@ std::shared_ptr<node>array_index(Parser *parser, std::shared_ptr<ScopeNode> scop
 std::shared_ptr<node>function_call(Parser *parser, std::shared_ptr<ScopeNode> scope, std::shared_ptr<node>n);
 
 std::unordered_map<TokenType, ParseRule> rules = {
-    {PAREN, {grouping, function_call, PRECEDENCE_POSTFIX}},
-    {CLOSE_PAREN, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {BRACE, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {CLOSE_BRACE, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {BRACKET, {array_constructor, array_index, PRECEDENCE_POSTFIX}},
-    {CLOSE_BRACKET, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {COMMA, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {DOT, {nullptr, field_call, PRECEDENCE_POSTFIX}},
-    {COLON, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {MINUS, {unary, binary, PRECEDENCE_ADD}},
-    {PLUS, {nullptr, binary, PRECEDENCE_ADD}},
-    {AMPERSAND, {unary, binary, PRECEDENCE_BITWISE_AND}},
-    {LEFT_ARROW, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {ARROW, {nullptr, field_call, PRECEDENCE_POSTFIX}},
-    {EQUAL, {nullptr, assignment, PRECEDENCE_ASSIGNMENT}},
-    {SEMICOLON, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {SLASH, {nullptr, binary, PRECEDENCE_MULTIPLY}},
-    {STAR, {unary, binary, PRECEDENCE_MULTIPLY}},
-    {BANG, {unary, nullptr, PRECEDENCE_PREFIX}},
-    {BANG_EQUAL, {nullptr, binary, PRECEDENCE_EQUALITY}},
-    {EQUAL_EQUAL, {nullptr, binary, PRECEDENCE_EQUALITY}},
-    {LESS, {nullptr, binary, PRECEDENCE_COMPARISON}},
-    {LESS_EQUAL, {nullptr, binary, PRECEDENCE_EQUALITY}},
-    {GREATER, {nullptr, binary, PRECEDENCE_COMPARISON}},
-    {GREATER_EQUAL, {nullptr, binary, PRECEDENCE_EQUALITY}},
-    {TYPE, {list_init, nullptr, PRECEDENCE_NONE}},
-    {LET, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {FUNC, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {TYPEVAR, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {IDENTIFIER, {identifier, nullptr, PRECEDENCE_NONE}},
-    {OPERATOR, {unary, binary, PRECEDENCE_NONE}}, //add precedence information from preprocessor
-    {UNDERSCORE, {placeholder, nullptr, PRECEDENCE_NONE}},
-    {TYPEDEF, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {SWITCH, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {CASE, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {CLASS, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {IMPLEMENT, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {USING, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {LAMBDA, {lambda, nullptr, PRECEDENCE_PREFIX}},
-    {MUTABLE, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {TRUE, {literal, nullptr, PRECEDENCE_NONE}},
-    {FALSE, {literal, nullptr, PRECEDENCE_NONE}},
-    {FLOAT, {literal, nullptr, PRECEDENCE_NONE}},
-    {DOUBLE, {literal, nullptr, PRECEDENCE_NONE}},
-    {CHAR, {literal, nullptr, PRECEDENCE_NONE}},
-    {INT, {literal, nullptr, PRECEDENCE_NONE}},
-    {HEX_INT, {literal, nullptr, PRECEDENCE_NONE}},
-    {OCT_INT, {literal, nullptr, PRECEDENCE_NONE}},
-    {BIN_INT, {literal, nullptr, PRECEDENCE_NONE}},
-    {STRING, {literal, nullptr, PRECEDENCE_NONE}},
-    {IF, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {WHILE, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {FOR, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {RETURN, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {ELSE, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {AND, {nullptr, binary, PRECEDENCE_LOGICAL_AND}},
-    {OR, {nullptr, binary, PRECEDENCE_LOGICAL_OR}},
-    {NOT, {unary, nullptr, PRECEDENCE_PREFIX}},
-    {BIT_OR, {nullptr, binary, PRECEDENCE_BITWISE_OR}},
-    {SHIFT_LEFT, {nullptr, binary, PRECEDENCE_SHIFT}},
-    {SHIFT_RIGHT, {nullptr, binary, PRECEDENCE_SHIFT}},
-    {BREAK, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {NEWLINE, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {ERROR, {nullptr, nullptr, PRECEDENCE_NONE}},
-    {EOF_, {nullptr, nullptr, PRECEDENCE_NONE}}};
+    {PAREN, {grouping, function_call, PRECEDENCE_POSTFIX, false}},
+    {CLOSE_PAREN, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {BRACE, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {CLOSE_BRACE, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {BRACKET, {array_constructor, array_index, PRECEDENCE_POSTFIX, false}},
+    {CLOSE_BRACKET, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {COMMA, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {DOT, {nullptr, field_call, PRECEDENCE_POSTFIX, false}},
+    {COLON, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {MINUS, {unary, binary, PRECEDENCE_ADD, false}},
+    {PLUS, {nullptr, binary, PRECEDENCE_ADD, false}},
+    {AMPERSAND, {unary, binary, PRECEDENCE_BITWISE_AND, false}},
+    {LEFT_ARROW, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {ARROW, {nullptr, field_call, PRECEDENCE_POSTFIX, false}},
+    {EQUAL, {nullptr, assignment, PRECEDENCE_ASSIGNMENT, false}},
+    {SEMICOLON, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {SLASH, {nullptr, binary, PRECEDENCE_MULTIPLY, false}},
+    {STAR, {unary, binary, PRECEDENCE_MULTIPLY, false}},
+    {BANG, {unary, nullptr, PRECEDENCE_PREFIX, false}},
+    {BANG_EQUAL, {nullptr, binary, PRECEDENCE_EQUALITY, false}},
+    {EQUAL_EQUAL, {nullptr, binary, PRECEDENCE_EQUALITY, false}},
+    {LESS, {nullptr, binary, PRECEDENCE_COMPARISON, false}},
+    {LESS_EQUAL, {nullptr, binary, PRECEDENCE_EQUALITY, false}},
+    {GREATER, {nullptr, binary, PRECEDENCE_COMPARISON, false}},
+    {GREATER_EQUAL, {nullptr, binary, PRECEDENCE_EQUALITY, false}},
+    {TYPE, {list_init, nullptr, PRECEDENCE_NONE, false}},
+    {LET, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {FUNC, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {TYPEVAR, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {IDENTIFIER, {identifier, nullptr, PRECEDENCE_NONE, false}},
+    {OPERATOR, {unary, binary, PRECEDENCE_UNKNOWN, false}}, //add precedence information from preprocessor
+    {UNDERSCORE, {placeholder, nullptr, PRECEDENCE_NONE, false}},
+    {TYPEDEF, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {SWITCH, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {CASE, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {CLASS, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {IMPLEMENT, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {USING, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {LAMBDA, {lambda, nullptr, PRECEDENCE_PREFIX, false}},
+    {MUTABLE, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {TRUE, {literal, nullptr, PRECEDENCE_NONE, false}},
+    {FALSE, {literal, nullptr, PRECEDENCE_NONE, false}},
+    {FLOAT, {literal, nullptr, PRECEDENCE_NONE, false}},
+    {DOUBLE, {literal, nullptr, PRECEDENCE_NONE, false}},
+    {CHAR, {literal, nullptr, PRECEDENCE_NONE, false}},
+    {INT, {literal, nullptr, PRECEDENCE_NONE, false}},
+    {HEX_INT, {literal, nullptr, PRECEDENCE_NONE, false}},
+    {OCT_INT, {literal, nullptr, PRECEDENCE_NONE, false}},
+    {BIN_INT, {literal, nullptr, PRECEDENCE_NONE, false}},
+    {STRING, {literal, nullptr, PRECEDENCE_NONE, false}},
+    {IF, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {WHILE, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {FOR, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {RETURN, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {ELSE, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {AND, {nullptr, binary, PRECEDENCE_LOGICAL_AND, false}},
+    {OR, {nullptr, binary, PRECEDENCE_LOGICAL_OR, false}},
+    {NOT, {unary, nullptr, PRECEDENCE_PREFIX, false}},
+    {BIT_OR, {nullptr, binary, PRECEDENCE_BITWISE_OR, false}},
+    {SHIFT_LEFT, {nullptr, binary, PRECEDENCE_SHIFT, false}},
+    {SHIFT_RIGHT, {nullptr, binary, PRECEDENCE_SHIFT, false}},
+    {BREAK, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {NEWLINE, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {ERROR, {nullptr, nullptr, PRECEDENCE_NONE, false}},
+    {EOF_, {nullptr, nullptr, PRECEDENCE_NONE, false}}};
 
 static void errorAt(Parser *parser, Token *token, const char *msg)
 {
@@ -553,7 +527,7 @@ Ty resolve_type(Parser *parser, bool isDeclared)
     return type;
 }
 
-static std::shared_ptr<node>var_decl(Parser *parser, Ty type, std::shared_ptr<ScopeNode> scope)
+static std::shared_ptr<node> var_decl(Parser *parser, Ty type, std::shared_ptr<ScopeNode> scope)
 {
     auto result = std::make_shared<VariableDeclarationNode>();
     result->nodeType = NODE_VARIABLEDECL;
@@ -568,6 +542,42 @@ static std::shared_ptr<node>var_decl(Parser *parser, Ty type, std::shared_ptr<Sc
     }
     consume(parser, SEMICOLON, "expected ';' after variable declaration!");
     return std::static_pointer_cast<node>(result);
+}
+
+static void op_decl(Parser* parser, std::shared_ptr<ScopeNode> scope)
+{
+    ParseRule p { nullptr, nullptr, PRECEDENCE_NONE, false};
+    bool isPrefix = false;
+    bool isInfix = false;
+    bool isPostfix = false;
+    while(parser->current.type != IDENTIFIER)
+    {
+        switch(parser->current.type)
+        {
+            case PREFIX: isPrefix = true; break;
+            case INFIX: isInfix = true; break;
+            case POSTFIX: isPostfix = true; break;
+            default:
+            {
+                errorAtCurrent(parser, "invalid operator fixity!");
+                return;
+            }
+        }
+        advance(parser);
+        if(parser->current.type != IDENTIFIER) consume(parser, COMMA, "expected ',' between fixity types!");
+    }
+
+    if(isPrefix) p.prefix = unary;
+    if(isInfix) p.infix = binary;
+    if(isPostfix) p.isPostfix = true;
+
+    auto op = parser->current;
+    advance(parser);
+    consume(parser, INT, "expected precedence for operator declaration!");
+    p.precedence = std::stoi(tokenToString(parser->previous));
+    if(p.precedence > 9) error(parser, "precedence must be between 0 and 9!");
+    scope->opRules.emplace(tokenToString(op), p);
+    consume(parser, SEMICOLON, "expected ';' after operator declaration!");
 }
 
 static std::shared_ptr<node> func_decl(Parser *parser, Ty returnType, std::shared_ptr<ScopeNode>scope, Ty isImplOf)
@@ -651,7 +661,7 @@ static std::shared_ptr<node> func_decl(Parser *parser, Ty returnType, std::share
     return std::static_pointer_cast<node>(result);
 }
 
-static std::shared_ptr<node>struct_or_union(Parser *parser, std::shared_ptr<ScopeNode> scope)
+static std::shared_ptr<node> struct_or_union(Parser *parser, std::shared_ptr<ScopeNode> scope)
 {
     auto result = std::make_shared<RecordDeclarationNode>();
     result->nodeType = NODE_RECORDDECL;
@@ -691,7 +701,7 @@ static std::shared_ptr<node>struct_or_union(Parser *parser, std::shared_ptr<Scop
     return std::static_pointer_cast<node>(result);
 }
 
-static std::shared_ptr<node>typedef_decl(Parser *parser, std::shared_ptr<ScopeNode>scope)
+static std::shared_ptr<node> typedef_decl(Parser *parser, std::shared_ptr<ScopeNode>scope)
 {
     auto result = std::make_shared<TypedefNode>();
     result->nodeType = NODE_TYPEDEF;
@@ -707,7 +717,7 @@ static std::shared_ptr<node>typedef_decl(Parser *parser, std::shared_ptr<ScopeNo
     return std::static_pointer_cast<node>(result);
 }
 
-static std::shared_ptr<node>class_decl(Parser *parser, std::shared_ptr<ScopeNode>scope)
+static std::shared_ptr<node> class_decl(Parser *parser, std::shared_ptr<ScopeNode>scope)
 {
     //TODO: figure out what's wrong with resolve_type
     auto result = std::make_shared<ClassDeclarationNode>();
@@ -766,7 +776,7 @@ static std::shared_ptr<node> impl_decl(Parser* parser, std::shared_ptr<ScopeNode
     return std::static_pointer_cast<node>(n);
 }
 
-std::shared_ptr<node>declaration(Parser *parser, std::shared_ptr<ScopeNode> scope)
+std::shared_ptr<node> declaration(Parser *parser, std::shared_ptr<ScopeNode> scope)
 {
     Parser state = *parser;
     switch (parser->current.type)
@@ -815,12 +825,17 @@ std::shared_ptr<node>declaration(Parser *parser, std::shared_ptr<ScopeNode> scop
         return class_decl(parser, scope);
     case IMPLEMENT:
         return impl_decl(parser, scope);
+    case PREFIX:
+    case INFIX:
+    case POSTFIX:
+        op_decl(parser, scope);
+        return nullptr;
     default:
         return statement(parser, scope);
     }
 }
 
-static std::shared_ptr<node>switch_stmt(Parser *parser, std::shared_ptr<ScopeNode> scope)
+static std::shared_ptr<node> switch_stmt(Parser *parser, std::shared_ptr<ScopeNode> scope)
 {
     auto result = std::make_shared<SwitchStatementNode>();
     result->nodeType = NODE_SWITCH;
@@ -844,7 +859,7 @@ static std::shared_ptr<node>switch_stmt(Parser *parser, std::shared_ptr<ScopeNod
     return std::static_pointer_cast<node>(result);
 }
 
-static std::shared_ptr<node>for_stmt(Parser *parser, std::shared_ptr<ScopeNode>scope)
+static std::shared_ptr<node> for_stmt(Parser *parser, std::shared_ptr<ScopeNode>scope)
 {
     auto result = std::make_shared<ForStatementNode>();
     advance(parser);
@@ -873,7 +888,7 @@ static std::shared_ptr<node>for_stmt(Parser *parser, std::shared_ptr<ScopeNode>s
     return std::static_pointer_cast<node>(result);
 }
 
-static std::shared_ptr<node>if_stmt(Parser *parser, std::shared_ptr<ScopeNode>scope)
+static std::shared_ptr<node> if_stmt(Parser *parser, std::shared_ptr<ScopeNode>scope)
 {
     auto result = std::make_shared<IfStatementNode>();
     advance(parser);
@@ -894,7 +909,7 @@ static std::shared_ptr<node>if_stmt(Parser *parser, std::shared_ptr<ScopeNode>sc
     return std::static_pointer_cast<node>(result);
 }
 
-static std::shared_ptr<node>while_stmt(Parser *parser, std::shared_ptr<ScopeNode>scope)
+static std::shared_ptr<node> while_stmt(Parser *parser, std::shared_ptr<ScopeNode>scope)
 {
     auto result = std::make_shared<WhileStatementNode>();
     advance(parser);
@@ -906,7 +921,7 @@ static std::shared_ptr<node>while_stmt(Parser *parser, std::shared_ptr<ScopeNode
     return std::static_pointer_cast<node>(result);
 }
 
-std::shared_ptr<node>block_stmt(Parser *parser, std::shared_ptr<ScopeNode>scope)
+std::shared_ptr<node> block_stmt(Parser *parser, std::shared_ptr<ScopeNode>scope)
 {
 
     auto result = std::make_shared<BlockStatementNode>();
@@ -922,7 +937,7 @@ std::shared_ptr<node>block_stmt(Parser *parser, std::shared_ptr<ScopeNode>scope)
     return std::static_pointer_cast<node>(result);
 }
 
-static std::shared_ptr<node>return_stmt(Parser *parser, std::shared_ptr<ScopeNode> scope)
+static std::shared_ptr<node> return_stmt(Parser *parser, std::shared_ptr<ScopeNode> scope)
 {
     auto result = std::make_shared<ReturnStatementNode>();
     advance(parser);
@@ -979,7 +994,22 @@ static ParseRule *getRule(TokenType type)
     return &rules.at(type);
 }
 
-static std::shared_ptr<node>parsePrecedence(Parser *parser, Precedence prec, std::shared_ptr<ScopeNode> scope)
+static uint8_t getOperatorPrecedence(Token op, std::shared_ptr<ScopeNode> scope)
+{
+    auto opName = std::string{"("}.append(tokenToString(op)).append(")");
+    auto s = scope;
+    while(s != nullptr)
+    {
+        if(s->opRules.find(opName) != s->opRules.end())
+        {
+            return s->opRules.at(opName).precedence;
+        }
+        s = s->parentScope;
+    }
+    return 0;
+}
+
+static std::shared_ptr<node>parsePrecedence(Parser *parser, uint8_t prec, std::shared_ptr<ScopeNode> scope)
 {
     advance(parser);
     ParseRule *p = getRule(parser->previous.type);
@@ -991,10 +1021,23 @@ static std::shared_ptr<node>parsePrecedence(Parser *parser, Precedence prec, std
 
     std::shared_ptr<node> result = p->prefix(parser, scope);
 
-    while (prec <= getRule(parser->current.type)->precedence)
+    while (prec <= (parser->current.type == OPERATOR ? getOperatorPrecedence(parser->current, scope) : getRule(parser->current.type)->precedence))
     {
         advance(parser);
         p = getRule(parser->previous.type);
+        if(parser->previous.type == OPERATOR)
+        {
+            auto s = scope;
+            while(s != nullptr)
+            {
+                auto op = std::string("(").append(tokenToString(parser->previous)).append(")");
+                if(s->opRules.find(op) != s->opRules.end())
+                {
+                    p = &s->opRules.at(op);
+                }
+                s = s->parentScope;
+            }
+        }
         result = p->infix(parser, scope, result);
     }
     return result;
@@ -1035,7 +1078,22 @@ std::shared_ptr<node> list_init(Parser* parser, std::shared_ptr<ScopeNode> scope
     consume(parser, BRACE, "expected '{' before list initialization!");
     while(parser->current.type != CLOSE_BRACE)
     {
-        n->values.push_back(expression(parser, scope));
+        auto temp = expression(parser, scope);
+        if(parser->current.type == COLON)
+        {
+            if(temp->nodeType != NODE_IDENTIFIER) error(parser, "expected an identifier before ':' in list initializer!");
+            else
+            {
+                auto literal = std::static_pointer_cast<VariableNode>(temp)->variable;
+                n->fieldNames.push_back(literal);
+            }
+            advance(parser);
+            n->values.push_back(expression(parser, scope));
+        }
+        else
+        {
+            n->values.push_back(temp);
+        }
         if(parser->current.type == COMMA)
         {
             advance(parser);
@@ -1109,6 +1167,8 @@ std::shared_ptr<node>grouping(Parser *parser, std::shared_ptr<ScopeNode> scope)
             return tuple;
         }
     }
+    error(parser, "Invalid expression!");
+    return nullptr;
 }
 
 std::shared_ptr<node>unary(Parser *parser, std::shared_ptr<ScopeNode> scope)
@@ -1122,11 +1182,37 @@ std::shared_ptr<node>unary(Parser *parser, std::shared_ptr<ScopeNode> scope)
 
 std::shared_ptr<node>binary(Parser *parser, std::shared_ptr<ScopeNode> scope, std::shared_ptr<node>expression1)
 {
+    ParseRule *rule = &rules[parser->previous.type];
+    
+    if(rule->precedence == PRECEDENCE_UNKNOWN)
+    {
+        auto s = scope;
+        while(s != nullptr)
+        {
+            auto op = std::string("(").append(tokenToString(parser->previous)).append(")");
+            if(s->opRules.find(op) != s->opRules.end())
+            {
+                rule = &s->opRules.at(op);
+            }
+            s = s->parentScope;
+        }
+    }
+    if(rule->isPostfix)
+    {
+        ParseRule *next = &rules[parser->current.type];
+        if(next->prefix == nullptr)
+        {
+            auto n = std::make_shared<UnaryNode>();
+            n->nodeType = NODE_UNARY;
+            n->expression = expression1;
+            n->op = parser->previous;
+            return std::static_pointer_cast<node>(n);
+        }
+    }
     auto n = std::make_shared<BinaryNode>();
     n->nodeType = NODE_BINARY;
     n->expression1 = expression1;
     n->op = parser->previous;
-    ParseRule *rule = &rules[parser->previous.type];
     n->expression2 = parsePrecedence(parser, Precedence(rule->precedence + 1), scope);
 
     return std::static_pointer_cast<node>(n);

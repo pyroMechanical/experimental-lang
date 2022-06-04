@@ -16,6 +16,37 @@ struct Parser {
     bool panicMode;
 };
 
+typedef enum
+{
+    PRECEDENCE_NONE,
+    PRECEDENCE_APPLY,
+    PRECEDENCE_ASSIGNMENT,
+    PRECEDENCE_BITWISE_OR,
+    PRECEDENCE_BITWISE_AND,
+    PRECEDENCE_LOGICAL_OR,
+    PRECEDENCE_LOGICAL_AND,
+    PRECEDENCE_EQUALITY,
+    PRECEDENCE_COMPARISON,
+    PRECEDENCE_SHIFT,
+    PRECEDENCE_ADD,
+    PRECEDENCE_MULTIPLY,
+    PRECEDENCE_PREFIX,
+    PRECEDENCE_POSTFIX,
+    PRECEDENCE_UNKNOWN,
+    PRECEDENCE_PRIMARY
+} Precedence;
+
+struct node;
+struct ScopeNode;
+
+typedef struct
+{
+    std::shared_ptr<node>(*prefix)(Parser *parser, std::shared_ptr<ScopeNode> scope);
+    std::shared_ptr<node>(*infix)(Parser *parser, std::shared_ptr<ScopeNode> scope, std::shared_ptr<node> n);
+    uint8_t precedence;
+    bool isPostfix;
+} ParseRule;
+
 enum NodeType {
     NODE_UNDEFINED,
     NODE_PROGRAM,
@@ -108,6 +139,7 @@ struct ClassImplementationNode : public node {
 struct ScopeNode : public node {
     std::shared_ptr<ScopeNode> parentScope;
     std::vector<std::weak_ptr<ScopeNode>> childScopes;
+    std::unordered_map<std::string, ParseRule> opRules;
     std::unordered_map<std::string, std::shared_ptr<VariableDeclarationNode>> variables;
     std::unordered_map<std::string, std::shared_ptr<RecordDeclarationNode>> types;
     std::unordered_multimap<std::string, std::pair<Ty, Ty>> fields;
@@ -221,6 +253,7 @@ struct TupleConstructorNode : public node {
 
 struct ListInitNode : public node {
     Ty type;
+    std::vector<Token> fieldNames;
     std::vector<std::shared_ptr<node>> values;
 };
 struct PlaceholderNode : public node {}; //used for giving function parameters a definition

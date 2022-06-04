@@ -32,6 +32,7 @@ typedef enum {
     STRING,
 	//Keywords
 	IF, WHILE, FOR,
+	INFIX, PREFIX, POSTFIX,
 	RETURN, ELSE,
 	AND, OR, NOT, BIT_OR,
 	SHIFT_LEFT, SHIFT_RIGHT,
