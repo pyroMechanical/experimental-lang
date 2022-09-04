@@ -1,0 +1,22 @@
+Start testing: Jul 01 04:19 Eastern Daylight Time
+----------------------------------------------------------
+1/1 Testing: tests
+1/1 Test: tests
+Command: "C:/dev/experimental-lang/build/tests.exe"
+Directory: C:/dev/experimental-lang/build
+"tests" start time: Jul 01 04:19 Eastern Daylight Time
+Output:
+----------------------------------------------------------
+Running 8 test cases...
+infix ($) 2; infix (^) 3; x $ y ^ z;
+
+*** No errors detected
+<end of output>
+Test time =   0.22 sec
+----------------------------------------------------------
+Test Passed.
+"tests" end time: Jul 01 04:19 Eastern Daylight Time
+"tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Jul 01 04:19 Eastern Daylight Time

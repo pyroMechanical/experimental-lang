@@ -1,0 +1,24 @@
+Start testing: Jul 30 23:38 Eastern Daylight Time
+----------------------------------------------------------
+1/1 Testing: tests
+1/1 Test: tests
+Command: "C:/dev/experimental-lang/build/tests.exe"
+Directory: C:/dev/experimental-lang/build
+"tests" start time: Jul 30 23:38 Eastern Daylight Time
+Output:
+----------------------------------------------------------
+[line 1] Error at end: expected ';' after expression!
+[line 1] Error at end: expected ';' after expression!
+Running 13 test cases...
+C:/dev/experimental-lang/tests/test1.cpp(217): error: in "parser_test/parser_test_types": check pilaf::compareAST(valid, pilaf::parse("Type")) has failed
+
+*** 1 failure is detected in the test module "pilaf_test"
+<end of output>
+Test time =   0.31 sec
+----------------------------------------------------------
+Test Failed.
+"tests" end time: Jul 30 23:38 Eastern Daylight Time
+"tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Jul 30 23:38 Eastern Daylight Time

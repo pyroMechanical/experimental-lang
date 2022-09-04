@@ -1,8 +1,8 @@
 #ifndef semant_header
 #define semant_header
+#include "typecheck.h"
 
-#include "parser.h"
-
-std::shared_ptr<ProgramNode> analyze(const char* src);
-
+namespace pilaf {
+    std::shared_ptr<ProgramNode> analyze(const char* src);
+}
 #endif

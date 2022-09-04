@@ -1,0 +1,3 @@
+"C:\Program Files\CMake\bin\cmake.exe" -E rm -f CMakeFiles\pilaf.dir/objects.a
+C:\msys64\ucrt64\bin\ar.exe qc CMakeFiles\pilaf.dir/objects.a @CMakeFiles\pilaf.dir\objects1.rsp
+C:\msys64\ucrt64\bin\g++.exe -g -Wl,--whole-archive CMakeFiles\pilaf.dir/objects.a -Wl,--no-whole-archive -o pilaf.exe -Wl,--out-implib,libpilaf.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\pilaf.dir\linklibs.rsp

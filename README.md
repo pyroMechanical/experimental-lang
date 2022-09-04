@@ -1,1 +1,0 @@
-A second attempt at language creation with lessons learned from https://github.com/pyroMechanical/ashLang.

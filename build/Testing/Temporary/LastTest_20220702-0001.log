@@ -1,0 +1,73 @@
+Start testing: Jul 02 03:10 Eastern Daylight Time
+----------------------------------------------------------
+1/1 Testing: tests
+1/1 Test: tests
+Command: "C:/dev/experimental-lang/build/tests.exe"
+Directory: C:/dev/experimental-lang/build
+"tests" start time: Jul 02 03:10 Eastern Daylight Time
+Output:
+----------------------------------------------------------
+Running 11 test cases...
+>
+>  >  Type: Binary Operation; Operator: $.
+>    Type: Identifier; Name: x.
+>    Type: Binary Operation; Operator: ^.
+>      Type: Identifier; Name: y.
+>      Type: Identifier; Name: z.
+>
+>  >  Type: Binary Operation; Operator: %.
+>    Type: Binary Operation; Operator: $.
+>      Type: Identifier; Name: x.
+>      Type: Identifier; Name: y.
+>    Type: Binary Operation; Operator: ^.
+>      Type: Identifier; Name: z.
+>      Type: Identifier; Name: w.
+>
+>  >  Type: If Statement;
+Conditional Expression: 
+>    Type: Identifier; Name: x.
+Then branch:
+>    Type: Identifier; Name: y.
+Else branch:
+>    Type: Identifier; Name: z.
+>
+>  >  Type: If Statement;
+Conditional Expression: 
+>    Type: Identifier; Name: x.
+Then branch:
+>    Type: Identifier; Name: y.
+>
+>  >  Type: For Statement;
+Initialization Expression: 
+>    Type: Identifier; Name: x.
+Conditional Expression: 
+>    Type: Identifier; Name: y.
+Increment Expression: 
+>    Type: Identifier; Name: x.
+Looping Statement: 
+>    Type: Identifier; Name: z.
+>
+>  >  Type: For Statement;
+Looping Statement: 
+>    Type: Identifier; Name: z.
+>
+>  >  Type: Switch;
+>    Case:
+>      Type: Identifier; Name: y.
+Result:
+>      Type: Identifier; Name: z.
+>    Case:
+>      Type: Identifier; Name: v.
+Result:
+>      Type: Identifier; Name: w.
+
+*** No errors detected
+<end of output>
+Test time =   0.24 sec
+----------------------------------------------------------
+Test Passed.
+"tests" end time: Jul 02 03:10 Eastern Daylight Time
+"tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Jul 02 03:10 Eastern Daylight Time

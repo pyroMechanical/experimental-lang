@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Site BuildName="(empty)"
+	BuildStamp="20220731-0338-Experimental"
+	Name="(empty)"
+	Generator="ctest-3.22.0-rc2"
+	CompilerName=""
+	CompilerVersion=""
+	OSName="Windows"
+	Hostname="pyro-laptop"
+	OSRelease=" Professional"
+	OSVersion=" (Build 19043)"
+	OSPlatform="AMD64"
+	Is64Bits="1"
+	VendorString="GenuineIntel"
+	VendorID="Intel Corporation"
+	FamilyID="6"
+	ModelID="14"
+	ProcessorCacheSize="-1"
+	NumberOfLogicalCPU="8"
+	NumberOfPhysicalCPU="4"
+	TotalVirtualMemory="18674"
+	TotalPhysicalMemory="16242"
+	LogicalProcessorsPerPhysical="2"
+	ProcessorClockFrequency="2112"
+	>
+	<Testing>
+		<StartDateTime>Jul 30 23:38 Eastern Daylight Time</StartDateTime>
+		<StartTestTime>1659238721</StartTestTime>
+		<TestList>
+			<Test>./tests</Test>
+		</TestList>
+		<Test Status="failed">
+			<Name>tests</Name>
+			<Path>.</Path>
+			<FullName>./tests</FullName>
+			<FullCommandLine>C:\dev\experimental-lang\build\tests.exe</FullCommandLine>
+			<Results>
+				<NamedMeasurement type="text/string" name="Exit Code">
+					<Value>Failed</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="text/string" name="Exit Value">
+					<Value>201</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="numeric/double" name="Execution Time">
+					<Value>0.308466</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="numeric/double" name="Processors">
+					<Value>1</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="text/string" name="Completion Status">
+					<Value>Completed</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="text/string" name="Command Line">
+					<Value>C:\dev\experimental-lang\build\tests.exe</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="text/string" name="Environment">
+					<Value>#CTEST_RESOURCE_GROUP_COUNT=</Value>
+				</NamedMeasurement>
+				<Measurement>
+					<Value encoding="base64" compression="gzip">eJydT8tOwzAQvPsrFl+aRJDIcEByTxXiB6C3ClUre9NYOI7ldSr4e+xUSJy5rPYxszNz8i4QqA94TWlJgBkoWA30FclksrDb7wDHTKmuEjG7JdyJ079Yb2sILlxAPUEmzmCQifu+Fy96sHQdKj25mUJG/+AxXIYK462q3sTYPKrntshUUQ0ugIyYmNK5IoY//Tl/R2KpwUxkPiE6j6PWZpkLhg7vx+aK3tn738PGbOSxkGTbwoQMIzpPVoiu60Bt05oIHIOlfMtY5PNEtyTzYldPxU79tzmQ4gdMcXaL====</Value>
+				</Measurement>
+			</Results>
+		</Test>
+		<EndDateTime>Jul 30 23:38 Eastern Daylight Time</EndDateTime>
+		<EndTestTime>1659238721</EndTestTime>
+		<ElapsedMinutes>0</ElapsedMinutes>
+	</Testing>
+</Site>

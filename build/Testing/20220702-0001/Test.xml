@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Site BuildName="(empty)"
+	BuildStamp="20220702-0001-Experimental"
+	Name="(empty)"
+	Generator="ctest-3.22.0-rc2"
+	CompilerName=""
+	CompilerVersion=""
+	OSName="Windows"
+	Hostname="pyro-laptop"
+	OSRelease=" Professional"
+	OSVersion=" (Build 19043)"
+	OSPlatform="AMD64"
+	Is64Bits="1"
+	VendorString="GenuineIntel"
+	VendorID="Intel Corporation"
+	FamilyID="6"
+	ModelID="14"
+	ProcessorCacheSize="-1"
+	NumberOfLogicalCPU="8"
+	NumberOfPhysicalCPU="4"
+	TotalVirtualMemory="18674"
+	TotalPhysicalMemory="16242"
+	LogicalProcessorsPerPhysical="2"
+	ProcessorClockFrequency="2112"
+	>
+	<Testing>
+		<StartDateTime>Jul 02 03:10 Eastern Daylight Time</StartDateTime>
+		<StartTestTime>1656745808</StartTestTime>
+		<TestList>
+			<Test>./tests</Test>
+		</TestList>
+		<Test Status="passed">
+			<Name>tests</Name>
+			<Path>.</Path>
+			<FullName>./tests</FullName>
+			<FullCommandLine>C:\dev\experimental-lang\build\tests.exe</FullCommandLine>
+			<Results>
+				<NamedMeasurement type="numeric/double" name="Execution Time">
+					<Value>0.235602</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="numeric/double" name="Processors">
+					<Value>1</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="text/string" name="Completion Status">
+					<Value>Completed</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="text/string" name="Command Line">
+					<Value>C:\dev\experimental-lang\build\tests.exe</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="text/string" name="Environment">
+					<Value>#CTEST_RESOURCE_GROUP_COUNT=</Value>
+				</NamedMeasurement>
+				<Measurement>
+					<Value encoding="base64" compression="gzip">eJzFlMFqwzAMhu95Ch26q1lGTwn0sNFBYHSw9TxwE2UxJHKwnTXJ00/OurFutEnKYOCDbf2SPkvITw2RolcIQ3BoHaTSohVCBKtgBcBr29UYwa0iaTp4rNFIpzTFh602ESyEl34qkwzJqVyhiWEjK75pj+znIr0clKdjdaOKfg761WS0xWjidjL8XxSiH1XsfxYiyeHZSYcVK+PgTlOmfF5ZwrqtDVrLhwhGe7ktkGBnJKVFdF7M712XFqeJf/XtP3CPCe61+Y6QEAPIUvVDu+ZRXIbPRAmlZsg/L9+D1rUf6y/8Uz5+1LlEYPzw6xwc74ePQDeubhzspWVbpd8wA6soRVAOsE0RM/shLti10GXmvcPrmyXsOg4ggnc9YV7q====</Value>
+				</Measurement>
+			</Results>
+		</Test>
+		<EndDateTime>Jul 02 03:10 Eastern Daylight Time</EndDateTime>
+		<EndTestTime>1656745808</EndTestTime>
+		<ElapsedMinutes>0</ElapsedMinutes>
+	</Testing>
+</Site>

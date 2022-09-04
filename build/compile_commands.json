@@ -1,0 +1,62 @@
+[
+{
+  "directory": "C:/dev/experimental-lang/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/pilaf.dir/includes_CXX.rsp -g -o CMakeFiles\\pilaf.dir\\src\\compiler.cpp.obj -c C:\\dev\\experimental-lang\\src\\compiler.cpp",
+  "file": "C:/dev/experimental-lang/src/compiler.cpp"
+},
+{
+  "directory": "C:/dev/experimental-lang/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/pilaf.dir/includes_CXX.rsp -g -o CMakeFiles\\pilaf.dir\\src\\lexer.cpp.obj -c C:\\dev\\experimental-lang\\src\\lexer.cpp",
+  "file": "C:/dev/experimental-lang/src/lexer.cpp"
+},
+{
+  "directory": "C:/dev/experimental-lang/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/pilaf.dir/includes_CXX.rsp -g -o CMakeFiles\\pilaf.dir\\src\\main.cpp.obj -c C:\\dev\\experimental-lang\\src\\main.cpp",
+  "file": "C:/dev/experimental-lang/src/main.cpp"
+},
+{
+  "directory": "C:/dev/experimental-lang/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/pilaf.dir/includes_CXX.rsp -g -o CMakeFiles\\pilaf.dir\\src\\parser.cpp.obj -c C:\\dev\\experimental-lang\\src\\parser.cpp",
+  "file": "C:/dev/experimental-lang/src/parser.cpp"
+},
+{
+  "directory": "C:/dev/experimental-lang/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/pilaf.dir/includes_CXX.rsp -g -o CMakeFiles\\pilaf.dir\\src\\semant.cpp.obj -c C:\\dev\\experimental-lang\\src\\semant.cpp",
+  "file": "C:/dev/experimental-lang/src/semant.cpp"
+},
+{
+  "directory": "C:/dev/experimental-lang/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/pilaf.dir/includes_CXX.rsp -g -o CMakeFiles\\pilaf.dir\\src\\typecheck.cpp.obj -c C:\\dev\\experimental-lang\\src\\typecheck.cpp",
+  "file": "C:/dev/experimental-lang/src/typecheck.cpp"
+},
+{
+  "directory": "C:/dev/experimental-lang/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/tests.dir/includes_CXX.rsp -g -o CMakeFiles\\tests.dir\\src\\compiler.cpp.obj -c C:\\dev\\experimental-lang\\src\\compiler.cpp",
+  "file": "C:/dev/experimental-lang/src/compiler.cpp"
+},
+{
+  "directory": "C:/dev/experimental-lang/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/tests.dir/includes_CXX.rsp -g -o CMakeFiles\\tests.dir\\src\\lexer.cpp.obj -c C:\\dev\\experimental-lang\\src\\lexer.cpp",
+  "file": "C:/dev/experimental-lang/src/lexer.cpp"
+},
+{
+  "directory": "C:/dev/experimental-lang/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/tests.dir/includes_CXX.rsp -g -o CMakeFiles\\tests.dir\\src\\parser.cpp.obj -c C:\\dev\\experimental-lang\\src\\parser.cpp",
+  "file": "C:/dev/experimental-lang/src/parser.cpp"
+},
+{
+  "directory": "C:/dev/experimental-lang/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/tests.dir/includes_CXX.rsp -g -o CMakeFiles\\tests.dir\\src\\semant.cpp.obj -c C:\\dev\\experimental-lang\\src\\semant.cpp",
+  "file": "C:/dev/experimental-lang/src/semant.cpp"
+},
+{
+  "directory": "C:/dev/experimental-lang/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/tests.dir/includes_CXX.rsp -g -o CMakeFiles\\tests.dir\\src\\typecheck.cpp.obj -c C:\\dev\\experimental-lang\\src\\typecheck.cpp",
+  "file": "C:/dev/experimental-lang/src/typecheck.cpp"
+},
+{
+  "directory": "C:/dev/experimental-lang/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/tests.dir/includes_CXX.rsp -g -o CMakeFiles\\tests.dir\\tests\\test1.cpp.obj -c C:\\dev\\experimental-lang\\tests\\test1.cpp",
+  "file": "C:/dev/experimental-lang/tests/test1.cpp"
+}
+]
